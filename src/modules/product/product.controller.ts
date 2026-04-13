@@ -11,16 +11,36 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
   CreateProductDto,
   ProductResponseDto,
   UpdateProductDto,
 } from './dto/product.dto';
 import { ProductService } from './product.service';
 
+@ApiTags('Products')
 @Controller('tenants/:tenantId/products')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  @ApiOperation({ summary: 'Create a new product' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Product created successfully',
+    type: ProductResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
   @Post()
   async create(
     @Param('tenantId') tenantId: string,
@@ -33,6 +53,39 @@ export class ProductController {
     return this.productToResponse(product);
   }
 
+  @ApiOperation({ summary: 'Get all products for tenant (paginated)' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    default: 1,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    default: 10,
+    description: 'Records per page',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of products',
+    schema: {
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/ProductResponseDto' },
+        },
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+      },
+    },
+  })
   @Get()
   async findAll(
     @Param('tenantId') tenantId: string,
@@ -52,6 +105,30 @@ export class ProductController {
     };
   }
 
+  @ApiOperation({ summary: 'Search products by name' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'q',
+    required: true,
+    description: 'Search query text',
+    example: 'Laptop',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Search results',
+    schema: {
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/ProductResponseDto' },
+        },
+      },
+    },
+  })
   @Get('search')
   async search(
     @Param('tenantId') tenantId: string,
@@ -63,6 +140,23 @@ export class ProductController {
     };
   }
 
+  @ApiOperation({ summary: 'Get product by ID' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'productId',
+    description: 'Product ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product found',
+    type: ProductResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Product or tenant not found' })
   @Get(':productId')
   async findById(
     @Param('tenantId') tenantId: string,
@@ -72,6 +166,23 @@ export class ProductController {
     return this.productToResponse(product);
   }
 
+  @ApiOperation({ summary: 'Update product information' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'productId',
+    description: 'Product ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product updated successfully',
+    type: ProductResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Product or tenant not found' })
   @Put(':productId')
   async update(
     @Param('tenantId') tenantId: string,
@@ -86,6 +197,19 @@ export class ProductController {
     return this.productToResponse(product);
   }
 
+  @ApiOperation({ summary: 'Soft delete product (mark as deleted)' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'productId',
+    description: 'Product ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({ status: 204, description: 'Product deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Product or tenant not found' })
   @Delete(':productId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
@@ -95,6 +219,23 @@ export class ProductController {
     await this.productService.softDelete(tenantId, productId);
   }
 
+  @ApiOperation({ summary: 'Restore previously deleted product' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'productId',
+    description: 'Product ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product restored successfully',
+    type: ProductResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Product or tenant not found' })
   @Post(':productId/restore')
   @HttpCode(HttpStatus.OK)
   async restore(

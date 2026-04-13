@@ -12,22 +12,69 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
   CreateTenantDto,
   TenantResponseDto,
   UpdateTenantDto,
 } from './dto/tenant.dto';
 import { TenantService } from './tenant.service';
 
+@ApiTags('Tenants')
 @Controller('tenants')
 export class TenantController {
   constructor(private readonly tenantService: TenantService) {}
 
+  @ApiOperation({ summary: 'Create a new tenant account' })
+  @ApiResponse({
+    status: 201,
+    description: 'Tenant created successfully',
+    type: TenantResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid input or email already exists',
+  })
   @Post()
   async create(@Body() createTenantDto: CreateTenantDto) {
     const tenant = await this.tenantService.create(createTenantDto);
     return this.tenantToResponse(tenant);
   }
 
+  @ApiOperation({ summary: 'Get all tenants (paginated)' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    default: 1,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    default: 10,
+    description: 'Records per page',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of tenants',
+    schema: {
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/TenantResponseDto' },
+        },
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+      },
+    },
+  })
   @Get()
   async findAll(
     @Query('page') page: string = '1',
@@ -45,18 +92,54 @@ export class TenantController {
     };
   }
 
+  @ApiOperation({ summary: 'Get tenant by ID' })
+  @ApiParam({
+    name: 'id',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tenant found',
+    type: TenantResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Tenant not found' })
   @Get(':id')
   async findById(@Param('id') id: string) {
     const tenant = await this.tenantService.findById(id);
     return this.tenantToResponse(tenant);
   }
 
+  @ApiOperation({ summary: 'Get tenant by email' })
+  @ApiParam({
+    name: 'email',
+    description: 'Tenant email address',
+    example: 'user@example.com',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tenant found',
+    type: TenantResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Tenant not found' })
   @Get('email/:email')
   async findByEmail(@Param('email') email: string) {
     const tenant = await this.tenantService.findByEmail(email);
     return this.tenantToResponse(tenant);
   }
 
+  @ApiOperation({ summary: 'Update tenant information' })
+  @ApiParam({
+    name: 'id',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tenant updated successfully',
+    type: TenantResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Tenant not found' })
   @Put(':id')
   async update(
     @Param('id') id: string,
@@ -66,6 +149,28 @@ export class TenantController {
     return this.tenantToResponse(tenant);
   }
 
+  @ApiOperation({ summary: 'Change tenant password' })
+  @ApiParam({
+    name: 'id',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiBody({
+    schema: {
+      properties: {
+        currentPassword: { type: 'string', example: 'oldPassword123' },
+        newPassword: { type: 'string', example: 'newPassword123' },
+      },
+      required: ['currentPassword', 'newPassword'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password changed successfully',
+    type: TenantResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Current password is incorrect' })
+  @ApiResponse({ status: 404, description: 'Tenant not found' })
   @Post(':id/change-password')
   @HttpCode(HttpStatus.OK)
   async changePassword(
@@ -89,6 +194,18 @@ export class TenantController {
     return this.tenantToResponse(updatedTenant);
   }
 
+  @ApiOperation({ summary: 'Lock business abbreviation from further changes' })
+  @ApiParam({
+    name: 'id',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Abbreviation locked successfully',
+    type: TenantResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Tenant not found' })
   @Post(':id/lock-abbr')
   @HttpCode(HttpStatus.OK)
   async lockAbbr(@Param('id') id: string) {
@@ -96,6 +213,14 @@ export class TenantController {
     return this.tenantToResponse(tenant);
   }
 
+  @ApiOperation({ summary: 'Delete tenant account' })
+  @ApiParam({
+    name: 'id',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({ status: 204, description: 'Tenant deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Tenant not found' })
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(@Param('id') id: string) {

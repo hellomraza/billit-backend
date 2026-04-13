@@ -9,13 +9,37 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CreateInvoiceDto, InvoiceResponseDto } from './dto/invoice.dto';
 import { InvoiceService } from './invoice.service';
 
+@ApiTags('Invoices')
 @Controller('tenants/:tenantId/invoices')
 export class InvoiceController {
   constructor(private readonly invoiceService: InvoiceService) {}
 
+  @ApiOperation({ summary: 'Create a new invoice (with transaction)' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Invoice created successfully. Auto-decrements stock, creates audit logs, and deficit records.',
+    type: InvoiceResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid input or insufficient stock',
+  })
   @Post()
   async create(
     @Param('tenantId') tenantId: string,
@@ -28,6 +52,39 @@ export class InvoiceController {
     return this.invoiceToResponse(invoice);
   }
 
+  @ApiOperation({ summary: 'Get all invoices for tenant (paginated)' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    default: 1,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    default: 10,
+    description: 'Records per page',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of invoices',
+    schema: {
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/InvoiceResponseDto' },
+        },
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+      },
+    },
+  })
   @Get()
   async findAll(
     @Param('tenantId') tenantId: string,
@@ -47,6 +104,23 @@ export class InvoiceController {
     };
   }
 
+  @ApiOperation({ summary: 'Get invoice by ID' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'invoiceId',
+    description: 'Invoice ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoice found',
+    type: InvoiceResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Invoice or tenant not found' })
   @Get(':invoiceId')
   async findById(
     @Param('tenantId') tenantId: string,
@@ -56,6 +130,23 @@ export class InvoiceController {
     return this.invoiceToResponse(invoice);
   }
 
+  @ApiOperation({ summary: 'Get invoice by invoice number' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'invoiceNumber',
+    description: 'Auto-generated invoice number',
+    example: 'INV-20260413-001',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoice found',
+    type: InvoiceResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Invoice or tenant not found' })
   @Get('number/:invoiceNumber')
   async findByNumber(
     @Param('tenantId') tenantId: string,
@@ -68,6 +159,29 @@ export class InvoiceController {
     return this.invoiceToResponse(invoice);
   }
 
+  @ApiOperation({ summary: 'Get all invoices for an outlet' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'outletId',
+    description: 'Outlet ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of invoices for outlet',
+    schema: {
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/InvoiceResponseDto' },
+        },
+      },
+    },
+  })
   @Get('outlet/:outletId')
   async findByOutlet(
     @Param('tenantId') tenantId: string,
@@ -79,6 +193,29 @@ export class InvoiceController {
     };
   }
 
+  @ApiOperation({ summary: 'Get invoices by payment method' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'paymentMethod',
+    description: 'Payment method (CASH, CARD, or UPI)',
+    example: 'CASH',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of invoices with specified payment method',
+    schema: {
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/InvoiceResponseDto' },
+        },
+      },
+    },
+  })
   @Get('payment-method/:paymentMethod')
   async findByPaymentMethod(
     @Param('tenantId') tenantId: string,
@@ -93,6 +230,19 @@ export class InvoiceController {
     };
   }
 
+  @ApiOperation({ summary: 'Soft delete invoice (mark as deleted)' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'invoiceId',
+    description: 'Invoice ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({ status: 204, description: 'Invoice deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Invoice or tenant not found' })
   @Delete(':invoiceId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(

@@ -11,16 +11,36 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
   CreateOutletDto,
   OutletResponseDto,
   UpdateOutletDto,
 } from './dto/outlet.dto';
 import { OutletService } from './outlet.service';
 
+@ApiTags('Outlets')
 @Controller('tenants/:tenantId/outlets')
 export class OutletController {
   constructor(private readonly outletService: OutletService) {}
 
+  @ApiOperation({ summary: 'Create a new outlet' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Outlet created successfully',
+    type: OutletResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
   @Post()
   async create(
     @Param('tenantId') tenantId: string,
@@ -30,6 +50,39 @@ export class OutletController {
     return this.outletToResponse(outlet);
   }
 
+  @ApiOperation({ summary: 'Get all outlets for tenant (paginated)' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    default: 1,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    default: 10,
+    description: 'Records per page',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of outlets',
+    schema: {
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/OutletResponseDto' },
+        },
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+      },
+    },
+  })
   @Get()
   async findAll(
     @Param('tenantId') tenantId: string,
@@ -49,6 +102,23 @@ export class OutletController {
     };
   }
 
+  @ApiOperation({ summary: 'Get outlet by ID' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'outletId',
+    description: 'Outlet ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Outlet found',
+    type: OutletResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Outlet or tenant not found' })
   @Get(':outletId')
   async findById(
     @Param('tenantId') tenantId: string,
@@ -58,6 +128,23 @@ export class OutletController {
     return this.outletToResponse(outlet);
   }
 
+  @ApiOperation({ summary: 'Update outlet information' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'outletId',
+    description: 'Outlet ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Outlet updated successfully',
+    type: OutletResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Outlet or tenant not found' })
   @Put(':outletId')
   async update(
     @Param('tenantId') tenantId: string,
@@ -72,6 +159,23 @@ export class OutletController {
     return this.outletToResponse(outlet);
   }
 
+  @ApiOperation({ summary: 'Set outlet as default for tenant' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'outletId',
+    description: 'Outlet ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Outlet set as default successfully',
+    type: OutletResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Outlet or tenant not found' })
   @Post(':outletId/set-default')
   @HttpCode(HttpStatus.OK)
   async setDefault(
@@ -82,12 +186,37 @@ export class OutletController {
     return this.outletToResponse(outlet);
   }
 
+  @ApiOperation({ summary: 'Get default outlet for tenant' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Default outlet found',
+    type: OutletResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'No default outlet found' })
   @Get('default')
   async getDefault(@Param('tenantId') tenantId: string) {
     const outlet = await this.outletService.getDefault(tenantId);
     return this.outletToResponse(outlet);
   }
 
+  @ApiOperation({ summary: 'Delete outlet' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'outletId',
+    description: 'Outlet ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({ status: 204, description: 'Outlet deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Outlet or tenant not found' })
   @Delete(':outletId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
