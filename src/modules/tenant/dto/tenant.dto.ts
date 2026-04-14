@@ -148,6 +148,12 @@ export class TenantResponseDto {
   abbrLocked: boolean;
 
   @ApiProperty({
+    description: 'Whether onboarding is complete',
+    example: false,
+  })
+  onboardingComplete: boolean;
+
+  @ApiProperty({
     description: 'Creation timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })

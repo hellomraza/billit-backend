@@ -1,6 +1,12 @@
-import { IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
-import { Types } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
+import { Types } from 'mongoose';
 import { ChangeType } from '../stock-audit.schema';
 
 export class CreateStockAuditLogDto {

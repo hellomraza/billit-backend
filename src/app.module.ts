@@ -4,12 +4,16 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { DailyCounterModule } from './modules/daily-counter/daily-counter.module';
 import { DeficitModule } from './modules/deficit/deficit.module';
+import { ImportModule } from './modules/import/import.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { OutletModule } from './modules/outlet/outlet.module';
 import { PasswordResetModule } from './modules/password-reset/password-reset.module';
 import { ProductModule } from './modules/product/product.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { StockAuditModule } from './modules/stock-audit/stock-audit.module';
 import { StockModule } from './modules/stock/stock.module';
 import { TenantModule } from './modules/tenant/tenant.module';
@@ -27,6 +31,10 @@ import { TenantModule } from './modules/tenant/tenant.module';
       },
     ),
     DatabaseModule,
+    AuthModule,
+    OnboardingModule,
+    SettingsModule,
+    ImportModule,
     TenantModule,
     OutletModule,
     ProductModule,

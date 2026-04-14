@@ -1,7 +1,17 @@
-import { IsEnum, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-import { Types } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
-import { DeficitStatus, ResolutionMethod, AdjustmentReason } from '../deficit.schema';
+import {
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
+import { Types } from 'mongoose';
+import {
+  AdjustmentReason,
+  DeficitStatus,
+  ResolutionMethod,
+} from '../deficit.schema';
 
 export class CreateDeficitDto {
   @ApiProperty({

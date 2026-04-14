@@ -236,6 +236,7 @@ export class TenantController {
       gstNumber: tenant.gstNumber,
       gstEnabled: tenant.gstEnabled,
       abbrLocked: tenant.abbrLocked,
+      onboardingComplete: tenant.onboardingComplete,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
     };

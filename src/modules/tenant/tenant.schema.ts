@@ -24,6 +24,9 @@ export class Tenant extends Document {
   @Prop({ default: false })
   abbrLocked: boolean;
 
+  @Prop({ default: false })
+  onboardingComplete: boolean;
+
   @Prop()
   createdAt: Date;
 

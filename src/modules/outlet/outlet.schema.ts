@@ -12,6 +12,18 @@ export class Outlet extends Document {
   @Prop({ required: true, minlength: 3, maxlength: 6 })
   outletAbbr: string;
 
+  @Prop()
+  address?: string;
+
+  @Prop()
+  city?: string;
+
+  @Prop()
+  state?: string;
+
+  @Prop()
+  pincode?: string;
+
   @Prop({ default: false })
   isDefault: boolean;
 
