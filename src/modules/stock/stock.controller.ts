@@ -239,6 +239,24 @@ export class StockController {
     };
   }
 
+  /**
+   * UPDATE STOCK QUANTITY
+   *
+   * ENDPOINT DESIGN RATIONALE:
+   * Stock in this system is outlet-scoped. Each product has separate stock quantities at each outlet.
+   * Therefore, the stock record ID (not just productId) must be used to unambiguously identify which stock to update.
+   *
+   * REQUEST FLOW:
+   * 1. Frontend finds the stock record: GET /tenants/:tenantId/stock/product/:productId/outlet/:outletId
+   * 2. Frontend uses the returned stockId in the PUT request: PUT /tenants/:tenantId/stock/:stockId
+   * 3. Backend creates audit log and updates stock atomically
+   *
+   * COMPLIANCE:
+   * - Writes audit log entry (ChangeType.MANUAL_UPDATE) - See StockAuditLogService
+   * - Updates stock record atomically
+   * - Does not auto-resolve deficits
+   * - Validates quantity is integer >= 0
+   */
   @ApiOperation({ summary: 'Update stock quantity' })
   @ApiParam({
     name: 'tenantId',
@@ -247,7 +265,8 @@ export class StockController {
   })
   @ApiParam({
     name: 'stockId',
-    description: 'Stock record ID (MongoDB ObjectId)',
+    description:
+      'Stock record ID (MongoDB ObjectId) - Identifies a product-outlet combination',
     example: '507f1f77bcf86cd799439011',
   })
   @ApiResponse({

@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -21,6 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { TenantValidationGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { StockService } from '../stock/stock.service';
 import {
   CreateProductDto,
   ProductResponseDto,
@@ -33,7 +35,10 @@ import { ProductService } from './product.service';
 @ApiTags('Products')
 @Controller('tenants/:tenantId/products')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly stockService: StockService,
+  ) {}
 
   @ApiOperation({ summary: 'Create a new product' })
   @ApiParam({
@@ -201,6 +206,110 @@ export class ProductController {
       updateProductDto,
     );
     return this.productToResponse(product);
+  }
+
+  /**
+   * UPDATE PRODUCT STOCK AT OUTLET
+   *
+   * CONTRACT COMPLIANCE (Section 10.7: Manual Stock Update):
+   * Route: PATCH /products/:id/stock (as per contract)
+   *
+   * NOTE ON OUTLET SCOPING:
+   * Stock in this system is outlet-scoped. Each product has independent stock at each outlet.
+   * Therefore, this endpoint requires an outletId query parameter to specify which outlet's stock to update.
+   *
+   * RULES:
+   * - New quantity must be integer >= 0
+   * - Writes stock audit log entry (ChangeType.MANUAL_UPDATE)
+   * - Updates the stock record atomically
+   * - Does not auto-resolve deficits
+   *
+   * REQUEST FLOW:
+   * 1. API call: PATCH /tenants/:tenantId/products/:productId/stock?outletId=:outletId
+   * 2. Body: { "quantity": <number> }
+   * 3. Internally routes to: StockService.update() on the product-outlet stock record
+   * 4. Response: Updated stock record with audit log created
+   */
+  @ApiOperation({
+    summary: 'Update stock quantity for a product at a specific outlet',
+    description:
+      'Contract endpoint (10.7). Updates stock for product at outlet. Creates audit log and updates atomically. Stock is outlet-scoped - outletId is required.',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'productId',
+    description: 'Product ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439012',
+  })
+  @ApiQuery({
+    name: 'outletId',
+    description:
+      'Outlet ID (MongoDB ObjectId) - Required to specify which outlet stock to update',
+    example: '507f1f77bcf86cd799439013',
+    required: true,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Stock updated successfully with audit log created',
+    schema: {
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            tenantId: { type: 'string' },
+            productId: { type: 'string' },
+            outletId: { type: 'string' },
+            quantity: { type: 'number' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Invalid input (quantity not integer >= 0 or outletId missing)',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Stock record not found (product not in stock at this outlet)',
+  })
+  @Patch(':productId/stock')
+  @HttpCode(HttpStatus.OK)
+  async updateStock(
+    @Param('tenantId') tenantId: string,
+    @Param('productId') productId: string,
+    @Query('outletId') outletId: string,
+    @Body() updateStockDto: { quantity: number },
+  ) {
+    // Find the stock record for this product-outlet combination
+    const stock = await this.stockService.findByProductAndOutlet(
+      tenantId,
+      productId,
+      outletId,
+    );
+
+    // Update the stock record (audit log created automatically by StockService.update)
+    const updatedStock = await this.stockService.update(
+      tenantId,
+      stock._id.toString(),
+      updateStockDto,
+    );
+
+    return {
+      data: {
+        _id: updatedStock._id,
+        tenantId: updatedStock.tenantId,
+        productId: updatedStock.productId,
+        outletId: updatedStock.outletId,
+        quantity: updatedStock.quantity,
+      },
+    };
   }
 
   @ApiOperation({ summary: 'Soft delete product (mark as deleted)' })
