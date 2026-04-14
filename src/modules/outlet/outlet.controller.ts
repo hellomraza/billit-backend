@@ -9,14 +9,18 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { TenantValidationGuard } from '../../common/guards';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   CreateOutletDto,
   OutletResponseDto,
@@ -24,6 +28,8 @@ import {
 } from './dto/outlet.dto';
 import { OutletService } from './outlet.service';
 
+@UseGuards(JwtAuthGuard, TenantValidationGuard)
+@ApiBearerAuth('access-token')
 @ApiTags('Outlets')
 @Controller('tenants/:tenantId/outlets')
 export class OutletController {

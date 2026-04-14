@@ -9,14 +9,18 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { TenantValidationGuard } from '../../common/guards';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   CreateProductDto,
   ProductResponseDto,
@@ -24,6 +28,8 @@ import {
 } from './dto/product.dto';
 import { ProductService } from './product.service';
 
+@UseGuards(JwtAuthGuard, TenantValidationGuard)
+@ApiBearerAuth('access-token')
 @ApiTags('Products')
 @Controller('tenants/:tenantId/products')
 export class ProductController {

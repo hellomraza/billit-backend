@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { DeficitModule } from '../deficit/deficit.module';
 import { ProductController } from './product.controller';
 import { Product, ProductSchema } from './product.schema';
 import { ProductService } from './product.service';
@@ -7,6 +8,7 @@ import { ProductService } from './product.service';
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Product.name, schema: ProductSchema }]),
+    DeficitModule,
   ],
   providers: [ProductService],
   controllers: [ProductController],

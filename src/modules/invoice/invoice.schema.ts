@@ -5,6 +5,8 @@ export enum PaymentMethod {
   CASH = 'CASH',
   CARD = 'CARD',
   UPI = 'UPI',
+  CHEQUE = 'CHEQUE',
+  BANK_TRANSFER = 'BANK_TRANSFER',
 }
 
 export interface InvoiceItem {
@@ -15,6 +17,7 @@ export interface InvoiceItem {
   gstRate: number;
   gstAmount: any;
   lineTotal: any;
+  overridden?: boolean; // Whether this item was overridden due to insufficient stock
 }
 
 export type InvoiceDocument = Invoice & Document;
@@ -32,7 +35,7 @@ export class Invoice {
   @Prop({ required: true })
   invoiceNumber: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   clientGeneratedId: string;
 
   @Prop({ required: true, type: [Object] })
@@ -57,10 +60,27 @@ export class Invoice {
   customerPhone: string;
 
   @Prop({ default: false })
-  isGstInvoice: boolean;
+  gstEnabled: boolean;
 
   @Prop()
   tenantGstNumber: string;
+
+  // Snapshot fields for backward compatibility and audit trail
+  @Prop()
+  businessName: string;
+
+  @Prop()
+  businessAbbr: string;
+
+  @Prop()
+  outletName: string;
+
+  @Prop()
+  outletAbbr: string;
+
+  // Track if abbreviations were locked on this invoice (first invoice)
+  @Prop({ default: false })
+  abbreviationsLocked: boolean;
 
   @Prop({ default: false })
   isDeleted: boolean;
@@ -78,5 +98,7 @@ export const InvoiceSchema = SchemaFactory.createForClass(Invoice);
 InvoiceSchema.index({ tenantId: 1, createdAt: -1 });
 InvoiceSchema.index({ tenantId: 1, invoiceNumber: 1 }, { unique: true });
 InvoiceSchema.index({ tenantId: 1, clientGeneratedId: 1 }, { unique: true });
+InvoiceSchema.index({ tenantId: 1, outletId: 1, createdAt: -1 });
 InvoiceSchema.index({ tenantId: 1, paymentMethod: 1 });
-InvoiceSchema.index({ tenantId: 1, isGstInvoice: 1 });
+InvoiceSchema.index({ tenantId: 1, gstEnabled: 1 });
+InvoiceSchema.index({ tenantId: 1, 'items.productId': 1 });

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { ChangeType, StockAuditLog } from './stock-audit.schema';
 
 @Injectable()
@@ -18,6 +18,7 @@ export class StockAuditLogService {
     newQuantity: number,
     changeType: ChangeType,
     referenceId?: Types.ObjectId,
+    session?: ClientSession,
   ): Promise<StockAuditLog> {
     const auditLog = new this.auditLogModel({
       tenantId: new Types.ObjectId(tenantId),
@@ -30,7 +31,7 @@ export class StockAuditLogService {
       changedAt: new Date(),
     });
 
-    return auditLog.save();
+    return auditLog.save({ session });
   }
 
   async findByProduct(

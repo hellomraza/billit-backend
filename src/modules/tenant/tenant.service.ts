@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcryptjs from 'bcryptjs';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { CreateTenantDto, UpdateTenantDto } from './dto/tenant.dto';
 import { Tenant } from './tenant.schema';
 
@@ -117,6 +117,22 @@ export class TenantService {
       id,
       { abbrLocked: true },
       { new: true },
+    );
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+    return tenant;
+  }
+
+  async updateLockAbbr(
+    id: string,
+    locked: boolean,
+    session?: ClientSession,
+  ): Promise<Tenant> {
+    const tenant = await this.tenantModel.findByIdAndUpdate(
+      id,
+      { abbrLocked: locked },
+      { new: true, session },
     );
     if (!tenant) {
       throw new NotFoundException('Tenant not found');

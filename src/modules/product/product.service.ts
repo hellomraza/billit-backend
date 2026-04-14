@@ -1,6 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { DeficitStatus } from '../deficit/deficit.schema';
+import { DeficitService } from '../deficit/deficit.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { Product } from './product.schema';
 
@@ -8,6 +14,7 @@ import { Product } from './product.schema';
 export class ProductService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<Product>,
+    private readonly deficitService: DeficitService,
   ) {}
 
   async create(
@@ -97,6 +104,27 @@ export class ProductService {
   }
 
   async softDelete(tenantId: string, productId: string): Promise<Product> {
+    // Check if product has pending deficits
+    const pendingDeficits = await this.deficitService.findByProductAndStatus(
+      tenantId,
+      productId,
+      DeficitStatus.PENDING,
+    );
+
+    if (pendingDeficits && pendingDeficits.length > 0) {
+      throw new ConflictException({
+        statusCode: 409,
+        message: 'Cannot delete product with pending deficits',
+        error: 'Conflict',
+        details: {
+          productId,
+          pendingDeficitCount: pendingDeficits.length,
+          reason:
+            'Product must resolve all pending stock deficits before deletion',
+        },
+      });
+    }
+
     const product = await this.productModel.findOneAndUpdate(
       {
         _id: productId,

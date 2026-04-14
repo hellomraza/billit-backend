@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { DatabaseService } from '../../database/database.service';
+import { ChangeType } from '../stock-audit/stock-audit.schema';
+import { StockAuditLogService } from '../stock-audit/stock-audit.service';
 import {
   AdjustStockDto,
   CreateStockDto,
@@ -14,6 +16,7 @@ export class StockService {
   constructor(
     @InjectModel(Stock.name) private stockModel: Model<Stock>,
     private databaseService: DatabaseService,
+    private stockAuditLogService: StockAuditLogService,
   ) {}
 
   async create(
@@ -47,12 +50,15 @@ export class StockService {
     tenantId: string,
     productId: string,
     outletId: string,
+    session?: ClientSession,
   ): Promise<Stock> {
-    const stock = await this.stockModel.findOne({
-      tenantId: new Types.ObjectId(tenantId),
-      productId: new Types.ObjectId(productId),
-      outletId: new Types.ObjectId(outletId),
-    });
+    const stock = await this.stockModel
+      .findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        productId: new Types.ObjectId(productId),
+        outletId: new Types.ObjectId(outletId),
+      })
+      .session(session || null);
 
     if (!stock) {
       throw new NotFoundException('Stock record not found');
@@ -94,6 +100,17 @@ export class StockService {
     stockId: string,
     updateStockDto: UpdateStockDto,
   ): Promise<Stock> {
+    // Fetch the old stock to capture previous quantity for audit log
+    const oldStock = await this.stockModel.findOne({
+      _id: stockId,
+      tenantId: new Types.ObjectId(tenantId),
+    });
+
+    if (!oldStock) {
+      throw new NotFoundException('Stock record not found');
+    }
+
+    // Update the stock
     const stock = await this.stockModel.findOneAndUpdate(
       { _id: stockId, tenantId: new Types.ObjectId(tenantId) },
       { quantity: updateStockDto.quantity },
@@ -103,6 +120,17 @@ export class StockService {
     if (!stock) {
       throw new NotFoundException('Stock record not found');
     }
+
+    // Create audit log for manual stock update
+    await this.stockAuditLogService.create(
+      tenantId,
+      oldStock.productId.toString(),
+      oldStock.outletId.toString(),
+      oldStock.quantity,
+      updateStockDto.quantity,
+      ChangeType.MANUAL_UPDATE,
+      new Types.ObjectId(stockId),
+    );
 
     return stock;
   }
@@ -142,6 +170,7 @@ export class StockService {
     productId: string,
     outletId: string,
     quantity: number,
+    session?: ClientSession,
   ): Promise<Stock> {
     const stock = await this.stockModel.findOneAndUpdate(
       {
@@ -150,7 +179,7 @@ export class StockService {
         outletId: new Types.ObjectId(outletId),
       },
       { $inc: { quantity: -quantity } },
-      { new: true },
+      { new: true, session },
     );
 
     if (!stock) {
@@ -165,6 +194,7 @@ export class StockService {
     productId: string,
     outletId: string,
     quantity: number,
+    session?: ClientSession,
   ): Promise<Stock> {
     const stock = await this.stockModel.findOneAndUpdate(
       {
@@ -173,7 +203,7 @@ export class StockService {
         outletId: new Types.ObjectId(outletId),
       },
       { $inc: { quantity } },
-      { new: true },
+      { new: true, session },
     );
 
     if (!stock) {

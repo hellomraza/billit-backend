@@ -1,13 +1,18 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { TenantValidationGuard } from '../../common/guards';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { StockAuditLogService } from './stock-audit.service';
 
+@UseGuards(JwtAuthGuard, TenantValidationGuard)
+@ApiBearerAuth('access-token')
 @ApiTags('Stock Audit')
 @Controller('tenants/:tenantId/stock-audit')
 export class StockAuditController {

@@ -9,14 +9,18 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { TenantValidationGuard } from '../../common/guards';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   AdjustStockDto,
   CreateStockDto,
@@ -25,6 +29,8 @@ import {
 } from './dto/stock.dto';
 import { StockService } from './stock.service';
 
+@UseGuards(JwtAuthGuard, TenantValidationGuard)
+@ApiBearerAuth('access-token')
 @ApiTags('Stock')
 @Controller('tenants/:tenantId/stock')
 export class StockController {

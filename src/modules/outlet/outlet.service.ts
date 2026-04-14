@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { CreateOutletDto, UpdateOutletDto } from './dto/outlet.dto';
 import { Outlet } from './outlet.schema';
 
@@ -112,6 +112,23 @@ export class OutletService {
       throw new NotFoundException('No default outlet found for this tenant');
     }
 
+    return outlet;
+  }
+
+  async updateLockAbbr(
+    tenantId: string,
+    outletId: string,
+    locked: boolean,
+    session?: ClientSession,
+  ): Promise<Outlet> {
+    const outlet = await this.outletModel.findOneAndUpdate(
+      { _id: outletId, tenantId: new Types.ObjectId(tenantId) },
+      { abbrLocked: locked },
+      { new: true, session },
+    );
+    if (!outlet) {
+      throw new NotFoundException('Outlet not found');
+    }
     return outlet;
   }
 }

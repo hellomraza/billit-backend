@@ -3,20 +3,30 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { DatabaseModule } from '../../database/database.module';
 import { DailyCounterModule } from '../daily-counter/daily-counter.module';
 import { DeficitModule } from '../deficit/deficit.module';
+import { DeficitRecord, DeficitRecordSchema } from '../deficit/deficit.schema';
+import { OutletModule } from '../outlet/outlet.module';
+import { ProductModule } from '../product/product.module';
 import { StockAuditModule } from '../stock-audit/stock-audit.module';
 import { StockModule } from '../stock/stock.module';
+import { TenantModule } from '../tenant/tenant.module';
 import { InvoiceController } from './invoice.controller';
 import { Invoice, InvoiceSchema } from './invoice.schema';
 import { InvoiceService } from './invoice.service';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Invoice.name, schema: InvoiceSchema }]),
+    MongooseModule.forFeature([
+      { name: Invoice.name, schema: InvoiceSchema },
+      { name: DeficitRecord.name, schema: DeficitRecordSchema },
+    ]),
     DatabaseModule,
     forwardRef(() => StockModule),
     forwardRef(() => DeficitModule),
     forwardRef(() => StockAuditModule),
     forwardRef(() => DailyCounterModule),
+    forwardRef(() => TenantModule),
+    forwardRef(() => OutletModule),
+    forwardRef(() => ProductModule),
   ],
   providers: [InvoiceService],
   controllers: [InvoiceController],

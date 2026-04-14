@@ -1,4 +1,12 @@
-import { Body, Controller, Patch, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Patch,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -18,6 +26,7 @@ import {
   SignupDto,
   SuccessMessageDto,
 } from './dto/auth.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -134,6 +143,7 @@ export class AuthController {
    * Logout tenant
    */
   @Post('logout')
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Logout tenant',

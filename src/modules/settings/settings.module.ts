@@ -1,11 +1,21 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
+import { RefreshSessionSchema } from '../auth/refresh-session.schema';
 import { TenantModule } from '../tenant/tenant.module';
+import { Tenant, TenantSchema } from '../tenant/tenant.schema';
 import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 
 @Module({
-  imports: [TenantModule, AuthModule],
+  imports: [
+    MongooseModule.forFeature([
+      { name: Tenant.name, schema: TenantSchema },
+      { name: 'RefreshSession', schema: RefreshSessionSchema },
+    ]),
+    TenantModule,
+    AuthModule,
+  ],
   controllers: [SettingsController],
   providers: [SettingsService],
   exports: [SettingsService],
