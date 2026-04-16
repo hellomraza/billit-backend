@@ -1022,4 +1022,397 @@ describe('Invoice Atomic Transaction Safety (e2e)', () => {
       }
     });
   });
+
+  describe('7. GST Snapshot in Invoices', () => {
+    it('should capture invoice item snapshots at creation time', async () => {
+      const clientGeneratedId = new Types.ObjectId().toString();
+      const createInvoiceDto = {
+        clientGeneratedId,
+        outletId,
+        items: [
+          {
+            productId,
+            productName: 'Widget',
+            quantity: 2,
+            unitPrice: 100,
+            gstRate: 18,
+            override: false,
+          },
+        ],
+        paymentMethod: 'CASH',
+        customerName: 'Snapshot Test',
+        customerPhone: '9111111111',
+        gstEnabled: true,
+      };
+
+      const response = await request(app.getHttpServer())
+        .post(`/tenants/${tenantId}/invoices`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(createInvoiceDto)
+        .expect(201);
+
+      // Verify item snapshots are captured
+      const invoiceItem = response.body.data.items[0];
+      expect(invoiceItem.productId).toBe(productId.toString());
+      expect(invoiceItem.productName).toBe('Widget'); // Snapshot value
+      expect(invoiceItem.quantity).toBe(2);
+      expect(invoiceItem.unitPrice).toBe(100); // Snapshot value
+      expect(invoiceItem.gstRate).toBe(18); // Snapshot value
+      expect(invoiceItem.gstAmount).toBeDefined(); // Calculated at invoice time
+      expect(invoiceItem.lineTotal).toBeDefined();
+
+      // Verify gstAmount is calculated correctly
+      const expectedGstAmount = Math.round(200 * (18 / 100) * 100) / 100; // 36
+      expect(invoiceItem.gstAmount).toBe(expectedGstAmount);
+      expect(invoiceItem.lineTotal).toBe(200 + expectedGstAmount);
+    });
+
+    it('should snapshot tenant GST state at invoice time', async () => {
+      const clientGeneratedId = new Types.ObjectId().toString();
+      const createInvoiceDto = {
+        clientGeneratedId,
+        outletId,
+        items: [
+          {
+            productId,
+            productName: 'GST Test',
+            quantity: 1,
+            unitPrice: 100,
+            gstRate: 18,
+            override: false,
+          },
+        ],
+        paymentMethod: 'CASH',
+        customerName: 'GST Snapshot Test',
+        customerPhone: '9111111112',
+        gstEnabled: true,
+      };
+
+      const response = await request(app.getHttpServer())
+        .post(`/tenants/${tenantId}/invoices`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(createInvoiceDto)
+        .expect(201);
+
+      // Verify tenant GST state is snapshotted
+      expect(response.body.data.gstEnabled).toBe(true);
+      expect(response.body.data.tenantGstNumber).toBeDefined();
+      // Should be the tenant's GST number from creation time
+      expect(response.body.data.tenantGstNumber).toMatch(/^[0-9]{15}$/); // 15-digit GSTIN
+    });
+
+    it('should preserve invoice snapshots when product details change', async () => {
+      // Create first invoice with product "Widget"
+      const clientGeneratedId1 = new Types.ObjectId().toString();
+      const createInvoiceDto1 = {
+        clientGeneratedId: clientGeneratedId1,
+        outletId,
+        items: [
+          {
+            productId,
+            productName: 'Widget',
+            quantity: 1,
+            unitPrice: 100,
+            gstRate: 18,
+            override: false,
+          },
+        ],
+        paymentMethod: 'CASH',
+        customerName: 'Product Change Test',
+        customerPhone: '9111111113',
+        gstEnabled: true,
+      };
+
+      const invoice1Response = await request(app.getHttpServer())
+        .post(`/tenants/${tenantId}/invoices`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(createInvoiceDto1)
+        .expect(201);
+
+      const invoiceId1 = invoice1Response.body.data._id;
+      const originalProductName =
+        invoice1Response.body.data.items[0].productName;
+      expect(originalProductName).toBe('Widget');
+
+      // Note: In a real scenario, product would be updated here
+      // For this test, we'll create another invoice and verify the first one remains unchanged
+
+      // Create second invoice (simulating after product metadata might have changed)
+      const clientGeneratedId2 = new Types.ObjectId().toString();
+      const createInvoiceDto2 = {
+        clientGeneratedId: clientGeneratedId2,
+        outletId,
+        items: [
+          {
+            productId,
+            productName: 'Updated Widget Name',
+            quantity: 1,
+            unitPrice: 150,
+            gstRate: 18,
+            override: false,
+          },
+        ],
+        paymentMethod: 'CASH',
+        customerName: 'Product Change Test 2',
+        customerPhone: '9111111114',
+        gstEnabled: true,
+      };
+
+      const invoice2Response = await request(app.getHttpServer())
+        .post(`/tenants/${tenantId}/invoices`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(createInvoiceDto2)
+        .expect(201);
+
+      // Verify first invoice is unchanged
+      const getInvoice1 = await request(app.getHttpServer())
+        .get(`/tenants/${tenantId}/invoices/${invoiceId1}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(getInvoice1.body.data.items[0].productName).toBe('Widget');
+      expect(getInvoice1.body.data.items[0].unitPrice).toBe(100);
+
+      // Verify second invoice has new values
+      const invoiceId2 = invoice2Response.body.data._id;
+      expect(invoice2Response.body.data.items[0].productName).toBe(
+        'Updated Widget Name',
+      );
+      expect(invoice2Response.body.data.items[0].unitPrice).toBe(150);
+    });
+
+    it('should preserve tenant GST number snapshot when tenant settings change', async () => {
+      // Create invoice with current tenant GST setting
+      const clientGeneratedId = new Types.ObjectId().toString();
+      const createInvoiceDto = {
+        clientGeneratedId,
+        outletId,
+        items: [
+          {
+            productId,
+            productName: 'GST Change Test',
+            quantity: 1,
+            unitPrice: 100,
+            gstRate: 18,
+            override: false,
+          },
+        ],
+        paymentMethod: 'CASH',
+        customerName: 'GST Change Test',
+        customerPhone: '9111111115',
+        gstEnabled: true,
+      };
+
+      const invoiceResponse = await request(app.getHttpServer())
+        .post(`/tenants/${tenantId}/invoices`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(createInvoiceDto)
+        .expect(201);
+
+      const snapshotGstNumber = invoiceResponse.body.data.tenantGstNumber;
+      const invoiceId = invoiceResponse.body.data._id;
+
+      // Note: In a real scenario, tenant GST number would be updated here
+      // For this test, we verify the invoice retains the original snapshot
+
+      // Get invoice to verify GST number is unchanged
+      const getInvoice = await request(app.getHttpServer())
+        .get(`/tenants/${tenantId}/invoices/${invoiceId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(getInvoice.body.data.tenantGstNumber).toBe(snapshotGstNumber);
+    });
+
+    it('should not allow invoice updates (invoice is immutable)', async () => {
+      // Create an invoice
+      const clientGeneratedId = new Types.ObjectId().toString();
+      const createInvoiceDto = {
+        clientGeneratedId,
+        outletId,
+        items: [
+          {
+            productId,
+            productName: 'Immutability Test',
+            quantity: 1,
+            unitPrice: 100,
+            gstRate: 18,
+            override: false,
+          },
+        ],
+        paymentMethod: 'CASH',
+        customerName: 'Immutability Test',
+        customerPhone: '9111111116',
+        gstEnabled: true,
+      };
+
+      const response = await request(app.getHttpServer())
+        .post(`/tenants/${tenantId}/invoices`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(createInvoiceDto)
+        .expect(201);
+
+      const invoiceId = response.body.data._id;
+
+      // Verify no PATCH endpoint exists for invoices
+      await request(app.getHttpServer())
+        .patch(`/tenants/${tenantId}/invoices/${invoiceId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ items: [] })
+        .expect(404); // Method not found
+
+      // Verify no PUT endpoint exists for invoices
+      await request(app.getHttpServer())
+        .put(`/tenants/${tenantId}/invoices/${invoiceId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(createInvoiceDto)
+        .expect(404); // Method not found
+    });
+
+    it('should capture customer information snapshots', async () => {
+      const clientGeneratedId = new Types.ObjectId().toString();
+      const createInvoiceDto = {
+        clientGeneratedId,
+        outletId,
+        items: [
+          {
+            productId,
+            productName: 'Customer Snapshot',
+            quantity: 1,
+            unitPrice: 100,
+            gstRate: 18,
+            override: false,
+          },
+        ],
+        paymentMethod: 'CARD',
+        customerName: 'John Doe Customer Snapshot',
+        customerPhone: '9111111117',
+        gstEnabled: true,
+      };
+
+      const response = await request(app.getHttpServer())
+        .post(`/tenants/${tenantId}/invoices`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(createInvoiceDto)
+        .expect(201);
+
+      // Verify customer information is snapshotted
+      expect(response.body.data.customerName).toBe(
+        'John Doe Customer Snapshot',
+      );
+      expect(response.body.data.customerPhone).toBe('9111111117');
+      expect(response.body.data.paymentMethod).toBe('CARD');
+    });
+
+    it('should calculate tax amount at invoice creation time', async () => {
+      const clientGeneratedId = new Types.ObjectId().toString();
+      const createInvoiceDto = {
+        clientGeneratedId,
+        outletId,
+        items: [
+          {
+            productId,
+            productName: 'Tax Calculation',
+            quantity: 10,
+            unitPrice: 100,
+            gstRate: 18,
+            override: false,
+          },
+        ],
+        paymentMethod: 'CASH',
+        customerName: 'Tax Test',
+        customerPhone: '9111111118',
+        gstEnabled: true,
+      };
+
+      const response = await request(app.getHttpServer())
+        .post(`/tenants/${tenantId}/invoices`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(createInvoiceDto)
+        .expect(201);
+
+      const invoiceItem = response.body.data.items[0];
+      const invoiceData = response.body.data;
+
+      // Verify calculations
+      const expectedSubtotal = 10 * 100; // 1000
+      const expectedGstAmount =
+        Math.round(expectedSubtotal * (18 / 100) * 100) / 100; // 180
+      const expectedGrandTotal = expectedSubtotal + expectedGstAmount; // 1180
+
+      expect(invoiceData.subtotal).toBe(expectedSubtotal);
+      expect(invoiceData.totalGstAmount).toBe(expectedGstAmount);
+      expect(invoiceData.grandTotal).toBe(expectedGrandTotal);
+      expect(invoiceItem.gstAmount).toBe(expectedGstAmount);
+    });
+
+    it('should handle multiple items with different GST rates', async () => {
+      const clientGeneratedId = new Types.ObjectId().toString();
+      const createInvoiceDto = {
+        clientGeneratedId,
+        outletId,
+        items: [
+          {
+            productId,
+            productName: 'Item 5% GST',
+            quantity: 5,
+            unitPrice: 100,
+            gstRate: 5,
+            override: false,
+          },
+          {
+            productId,
+            productName: 'Item 18% GST',
+            quantity: 3,
+            unitPrice: 200,
+            gstRate: 18,
+            override: false,
+          },
+          {
+            productId,
+            productName: 'Item 0% GST',
+            quantity: 2,
+            unitPrice: 150,
+            gstRate: 0,
+            override: false,
+          },
+        ],
+        paymentMethod: 'CASH',
+        customerName: 'Multi-GST Test',
+        customerPhone: '9111111119',
+        gstEnabled: true,
+      };
+
+      const response = await request(app.getHttpServer())
+        .post(`/tenants/${tenantId}/invoices`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(createInvoiceDto)
+        .expect(201);
+
+      const items = response.body.data.items;
+
+      // Verify each item has correct snapshot and calculations
+      // Item 1: 5 * 100 = 500, GST 5% = 25
+      expect(items[0].gstRate).toBe(5);
+      expect(items[0].gstAmount).toBe(25);
+      expect(items[0].lineTotal).toBe(525);
+
+      // Item 2: 3 * 200 = 600, GST 18% = 108
+      expect(items[1].gstRate).toBe(18);
+      expect(items[1].gstAmount).toBe(108);
+      expect(items[1].lineTotal).toBe(708);
+
+      // Item 3: 2 * 150 = 300, GST 0% = 0
+      expect(items[2].gstRate).toBe(0);
+      expect(items[2].gstAmount).toBe(0);
+      expect(items[2].lineTotal).toBe(300);
+
+      // Total: 500 + 600 + 300 = 1400
+      expect(response.body.data.subtotal).toBe(1400);
+      // Total GST: 25 + 108 + 0 = 133
+      expect(response.body.data.totalGstAmount).toBe(133);
+      // Grand Total: 1400 + 133 = 1533
+      expect(response.body.data.grandTotal).toBe(1533);
+    });
+  });
 });

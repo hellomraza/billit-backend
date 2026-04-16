@@ -1,5 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import {
+  RefreshSession,
+  RefreshSessionSchema,
+} from '../auth/refresh-session.schema';
+import { Tenant, TenantSchema } from '../tenant/tenant.schema';
 import { PasswordResetController } from './password-reset.controller';
 import {
   PasswordResetToken,
@@ -11,6 +16,8 @@ import { PasswordResetService } from './password-reset.service';
   imports: [
     MongooseModule.forFeature([
       { name: PasswordResetToken.name, schema: PasswordResetTokenSchema },
+      { name: Tenant.name, schema: TenantSchema },
+      { name: RefreshSession.name, schema: RefreshSessionSchema },
     ]),
   ],
   providers: [PasswordResetService],
