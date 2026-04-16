@@ -112,25 +112,37 @@ export class AuthService {
 
   /**
    * Refresh access token using refresh token
+   * ✅ Validates token against bcryptjs hash (not plaintext comparison)
    */
   async refresh(refreshToken: string) {
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token required');
     }
 
-    // Verify refresh token exists and is not revoked
-    const tokenHash = await bcrypt.hash(refreshToken, 10);
-    const session = await this.refreshSessionModel.findOne({
-      tokenHash: { $regex: refreshToken },
+    // Find active sessions (not revoked, not expired)
+    const activeSessions = await this.refreshSessionModel.find({
       revokedAt: null,
       expiresAt: { $gt: new Date() },
     });
 
-    if (!session) {
+    // ✅ Validate token against stored hash using bcrypt.compare()
+    let validSession: any = null;
+    for (const session of activeSessions) {
+      const isTokenValid = await bcrypt.compare(
+        refreshToken,
+        session.tokenHash,
+      );
+      if (isTokenValid) {
+        validSession = session;
+        break;
+      }
+    }
+
+    if (!validSession) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const tenant = await this.tenantModel.findById(session.tenantId);
+    const tenant = await this.tenantModel.findById(validSession.tenantId);
     if (!tenant) {
       throw new UnauthorizedException('Tenant not found');
     }
@@ -144,22 +156,43 @@ export class AuthService {
   }
 
   /**
-   * Logout tenant by revoking refresh token
+   * Logout tenant by revoking refresh token(s)
+   * ✅ Revokes all sessions if no token provided
+   * ✅ Validates token using bcrypt.compare() before revoking
    */
   async logout(tenantId: string, refreshToken?: string) {
+    const tenantObjectId = new Types.ObjectId(tenantId);
+
     if (refreshToken) {
-      // Revoke specific session
-      await this.refreshSessionModel.updateOne(
-        {
-          tenantId: new Types.ObjectId(tenantId),
-          tokenHash: { $regex: refreshToken },
-        },
-        { revokedAt: new Date() },
-      );
+      // Revoke specific session - find and verify token
+      const sessions = await this.refreshSessionModel.find({
+        tenantId: tenantObjectId,
+        revokedAt: null,
+      });
+
+      let sessionToRevoke: any = null;
+      for (const session of sessions) {
+        const isTokenValid = await bcrypt.compare(
+          refreshToken,
+          session.tokenHash,
+        );
+        if (isTokenValid) {
+          sessionToRevoke = session;
+          break;
+        }
+      }
+
+      if (sessionToRevoke) {
+        await this.refreshSessionModel.updateOne(
+          { _id: sessionToRevoke._id },
+          { revokedAt: new Date() },
+        );
+      }
     } else {
-      // Revoke all sessions for this tenant
+      // ✅ Contract requirement (Section 7.2): Revoke all sessions for tenant
+      // Revoke all active sessions
       await this.refreshSessionModel.updateMany(
-        { tenantId: new Types.ObjectId(tenantId), revokedAt: null },
+        { tenantId: tenantObjectId, revokedAt: null },
         { revokedAt: new Date() },
       );
     }
