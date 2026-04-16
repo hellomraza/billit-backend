@@ -3,64 +3,115 @@ import { IsNotEmpty, IsString } from 'class-validator';
 
 export class ImportProductDto {
   @ApiProperty({
-    description: 'CSV file (base64 encoded or raw CSV text)',
-    example: 'name,sku,category,unit\nProduct1,SKU001,Category1,pieces\n',
+    description: 'CSV file content (raw text)',
+    example:
+      'name,price,gst_rate,opening_stock,deficit_threshold\nLaptop,99999.99,18,100,5\nChair,5999.99,18,50,3\n',
   })
   @IsString()
   @IsNotEmpty()
   csv: string;
 }
 
-export class ImportReportDto {
+export class ImportErrorDto {
   @ApiProperty({
-    description: 'Total rows processed',
-    example: 100,
-  })
-  totalRows: number;
-
-  @ApiProperty({
-    description: 'Successfully imported rows',
-    example: 95,
-  })
-  successfulRows: number;
-
-  @ApiProperty({
-    description: 'Failed rows (skipped)',
+    description: 'Row number in CSV (1-indexed)',
     example: 5,
   })
-  failedRows: number;
+  rowNumber: number;
 
   @ApiProperty({
-    description: 'List of failed rows with reasons',
+    description: 'Reason for skipping the row',
+    example: 'price must be positive (> 0)',
+  })
+  reason: string;
+
+  @ApiProperty({
+    description: 'The problematic row data',
+    required: false,
+    example: {
+      name: 'Invalid Product',
+      price: '-100',
+      gst_rate: '18',
+      opening_stock: '0',
+      deficit_threshold: '',
+    },
+  })
+  data?: Record<string, any>;
+}
+
+export class ImportReportDto {
+  @ApiProperty({
+    description: 'Number of products successfully imported',
+    example: 95,
+  })
+  imported: number;
+
+  @ApiProperty({
+    description: 'Number of rows skipped due to validation errors',
+    example: 5,
+  })
+  skipped: number;
+
+  @ApiProperty({
+    description: 'Total data rows processed (excluding header)',
+    example: 100,
+  })
+  total: number;
+
+  @ApiProperty({
+    description: 'Array of skipped rows with error details',
+    type: [ImportErrorDto],
     example: [
-      { rowNumber: 2, reason: 'Missing required field: name' },
-      { rowNumber: 5, reason: 'SKU already exists' },
+      {
+        rowNumber: 2,
+        reason: 'price must be positive (> 0)',
+        data: {
+          name: 'Product A',
+          price: '-100.00',
+          gst_rate: '18',
+          opening_stock: '50',
+          deficit_threshold: '5',
+        },
+      },
+      {
+        rowNumber: 5,
+        reason: 'gst_rate must be one of: 0, 5, 12, 18, 28',
+        data: {
+          name: 'Product B',
+          price: '100.00',
+          gst_rate: '10',
+          opening_stock: '',
+          deficit_threshold: '',
+        },
+      },
     ],
   })
-  errors: Array<{
-    rowNumber: number;
-    reason: string;
-  }>;
+  errors: ImportErrorDto[];
 
   @ApiProperty({
-    description: 'Timestamp of import',
-    example: '2026-04-13T10:30:00.000Z',
+    description: 'Timestamp of when the import was processed',
+    example: '2026-04-14T10:30:00.000Z',
   })
   importedAt: Date;
 }
 
 export class CsvTemplateDto {
   @ApiProperty({
-    description: 'CSV template content',
+    description: 'CSV template content showing column structure and examples',
     example:
-      'name,sku,category,unit,price,quantity\nProduct Name,SKU123,Electronics,pieces,99.99,100\n',
+      'name,price,gst_rate,opening_stock,deficit_threshold\n' +
+      'Laptop Computer,99999.99,18,100,5\n' +
+      'Office Chair,5999.99,18,50,3\n' +
+      'USB Cable,299.99,18,200,10\n',
   })
   template: string;
 
   @ApiProperty({
-    description: 'Instructions for CSV format',
+    description: 'Detailed instructions for CSV format and constraints',
     example:
-      'name: required (max 100), sku: required (unique), category: optional, unit: optional, price: required (number), quantity: optional',
+      'Required columns: name, price, gst_rate. Optional: opening_stock (default 0), deficit_threshold (default 10). ' +
+      'Constraints: name max 200 chars, price positive with max 2 decimals, gst_rate one of [0,5,12,18,28], ' +
+      'file size max 5 MB, max 1000 rows, opening_stock must be integer >= 0, deficit_threshold must be integer >= 1.',
   })
   instructions: string;
 }
