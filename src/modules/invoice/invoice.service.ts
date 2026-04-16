@@ -204,9 +204,12 @@ export class InvoiceService {
         const grandTotal = subtotal + totalGstAmount;
 
         // Get invoice number from Daily Counter
+        // IMPORTANT: Pass session to ensure counter increment is atomic within transaction
         const invoiceNumber = await this.dailyCounterService.incrementAndGet(
           createInvoiceDto.outletId,
           new Types.ObjectId(tenantId),
+          outlet.outletAbbr,
+          session,
         );
 
         // Create invoice document

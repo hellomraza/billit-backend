@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { DatabaseService } from '../../database/database.service';
 import { DailyInvoiceCounter } from './daily-counter.schema';
 
@@ -17,20 +17,37 @@ export class DailyCounterService {
     return today.toISOString().split('T')[0]; // YYYY-MM-DD format
   }
 
+  /**
+   * Increment daily counter and return formatted invoice number
+   * IMPORTANT: When called within a transaction, must pass session to ensure atomicity
+   *
+   * @param outletId - The outlet ID
+   * @param tenantId - The tenant ID (for reference, not used in formatting)
+   * @param outletAbbr - The outlet abbreviation for invoice number formatting
+   * @param session - Optional MongoDB session for transaction support
+   * @returns Formatted invoice number: {OUTLETABBR}-{DDMMYYYY}-{NNNNN}
+   *
+   * Transaction Safety:
+   * - If session provided, all database operations use the session (atomic within transaction)
+   * - If no session, operation is atomic at document level but outside transaction
+   * - Counter uses findOneAndUpdate with $inc (atomic increment)
+   * - Unique index on (outletId, date) prevents duplicate counters
+   */
   async incrementAndGet(
     outletId: Types.ObjectId,
     tenantId: Types.ObjectId,
+    outletAbbr: string,
+    session?: ClientSession,
   ): Promise<string> {
     const today = this.getTodayDate();
-    const outletAbbr = await this.getOutletAbbr(outletId);
 
     const counter = await this.counterModel.findOneAndUpdate(
       { outletId, date: today },
       { $inc: { lastCounter: 1 } },
-      { new: true, upsert: true },
+      { new: true, upsert: true, session },
     );
 
-    // Format: OUTLETABBR-DDMMYYYY-COUNTER
+    // Format: OUTLETABBR-DDMMYYYY-COUNTER (zero-padded to 5 digits)
     const day = today.split('-')[2];
     const month = today.split('-')[1];
     const year = today.split('-')[0];
@@ -75,11 +92,5 @@ export class DailyCounterService {
     }
 
     return counter;
-  }
-
-  private async getOutletAbbr(outletId: Types.ObjectId): Promise<string> {
-    // This will be injected from OutletService later
-    // For now, return a placeholder
-    return 'OUT';
   }
 }
