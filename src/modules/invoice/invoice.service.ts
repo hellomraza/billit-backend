@@ -84,12 +84,14 @@ export class InvoiceService {
           item.productId.toString(),
         );
 
-        // Get total pending deficit for this product
+        // Get total pending deficit for this product at THIS OUTLET (per contract section 14.5)
+        // Deficit threshold is enforced per product-outlet combination
         const pendingDeficit = await this.deficitModel.aggregate([
           {
             $match: {
               tenantId: new Types.ObjectId(tenantId),
               productId: item.productId,
+              outletId: new Types.ObjectId(createInvoiceDto.outletId),
               status: 'PENDING',
             },
           },
@@ -104,11 +106,18 @@ export class InvoiceService {
         const currentDeficit = pendingDeficit[0]?.totalDeficit || 0;
         const deficitThreshold = product?.deficitThreshold || 10;
 
-        // Can override only if threshold not exceeded
-        const canOverride =
-          currentDeficit +
-            Math.abs(wouldBeNegative ? currentStockQty - item.quantity : 0) <=
-          deficitThreshold;
+        // Calculate new deficit this transaction would create
+        const newDeficitFromThisTransaction = Math.abs(
+          Math.min(0, currentStockQty - item.quantity),
+        );
+
+        // Total pending deficit AFTER this transaction would be:
+        const projectedTotalDeficit =
+          currentDeficit + newDeficitFromThisTransaction;
+
+        // Can override ONLY if projected total <= threshold
+        // If threshold is already met or would be exceeded, block the override
+        const canOverride = projectedTotalDeficit <= deficitThreshold;
 
         insufficiencies.push({
           productId: item.productId.toString(),
@@ -119,7 +128,7 @@ export class InvoiceService {
           currentDeficit,
           canOverride,
           overrideBlockReason: !canOverride
-            ? `Deficit threshold (${deficitThreshold}) would be exceeded. Current deficit: ${currentDeficit}. New deficit would be: ${currentDeficit + Math.abs(currentStockQty - item.quantity)}`
+            ? `Deficit threshold (${deficitThreshold}) would be exceeded by this transaction. Current pending deficit: ${currentDeficit}. New deficit from this sale: ${newDeficitFromThisTransaction}. Total would be: ${projectedTotalDeficit}.`
             : undefined,
         });
       }
