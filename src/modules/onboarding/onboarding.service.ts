@@ -94,6 +94,16 @@ export class OnboardingService {
       });
       outlet = await newOutlet.save();
     } else {
+      // Check if outletAbbr is already locked
+      if (
+        outlet.abbrLocked &&
+        updateDto.abbr?.toUpperCase() !== outlet.outletAbbr
+      ) {
+        throw new ConflictException(
+          'Outlet abbreviation is locked and cannot be changed',
+        );
+      }
+
       // Update existing outlet
       outlet.outletName = updateDto.name;
       outlet.outletAbbr = updateDto.abbr?.toUpperCase();

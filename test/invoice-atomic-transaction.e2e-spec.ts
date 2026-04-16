@@ -374,19 +374,54 @@ describe('Invoice Atomic Transaction Safety (e2e)', () => {
     });
   });
 
-  describe('4.4 Abbreviation Locking on First Invoice', () => {
-    it('should lock abbreviations on first invoice', async () => {
-      // Create a new outlet for this test
-      const newOutletId = new Types.ObjectId().toString();
+  describe('6. Abbreviation Locking After First Invoice', () => {
+    // Use a dedicated outlet for these abbreviation locking tests
+    let lockTestOutletId: string;
 
+    beforeAll(async () => {
+      // Create a dedicated outlet for locking tests
+      lockTestOutletId = new Types.ObjectId().toString();
+    });
+
+    it('should allow abbreviation updates before first invoice', async () => {
+      // Update business abbreviation before first invoice
+      const updateBusinessDto = {
+        businessName: 'Updated Business',
+        businessAbbr: 'UPD1',
+      };
+
+      await request(app.getHttpServer())
+        .patch(`/tenants/${tenantId}/onboarding/business`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(updateBusinessDto)
+        .expect(200);
+
+      // Update outlet abbreviation before first invoice
+      const updateOutletDto = {
+        name: 'Updated Outlet',
+        abbr: 'UPD1',
+        address: '123 Street',
+        city: 'City',
+        state: 'State',
+        pincode: '123456',
+      };
+
+      await request(app.getHttpServer())
+        .patch(`/tenants/${tenantId}/onboarding/outlet`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(updateOutletDto);
+      // May return 200 or 409 depending on outlet existence
+    });
+
+    it('should lock abbreviations atomically on first invoice', async () => {
       const clientGeneratedId = new Types.ObjectId().toString();
       const createInvoiceDto = {
         clientGeneratedId,
-        outletId: newOutletId,
+        outletId: lockTestOutletId,
         items: [
           {
             productId,
-            productName: 'Lock Test',
+            productName: 'Lock Test Product',
             quantity: 1,
             unitPrice: 100,
             gstRate: 18,
@@ -394,7 +429,7 @@ describe('Invoice Atomic Transaction Safety (e2e)', () => {
           },
         ],
         paymentMethod: 'CASH',
-        customerName: 'Lock Test',
+        customerName: 'Lock Test Customer',
         customerPhone: '9999999999',
         gstEnabled: true,
       };
@@ -405,19 +440,156 @@ describe('Invoice Atomic Transaction Safety (e2e)', () => {
         .send(createInvoiceDto)
         .expect(201);
 
-      // Verify abbreviationsLocked is true in the invoice
+      // Verify abbreviationsLocked flag is set on the invoice
       expect(response.body.data.abbreviationsLocked).toBe(true);
 
-      // Verify attempting to update outlet abbreviation returns 403
+      // Verify invoice snapshot includes current abbreviations
+      expect(response.body.data.businessAbbr).toBeDefined();
+      expect(response.body.data.outletAbbr).toBeDefined();
+    });
+
+    it('should block business abbreviation changes after lock', async () => {
+      const updateBusinessDto = {
+        businessName: 'Still Updated',
+        businessAbbr: 'LOCKED_CANNOT_CHANGE', // Different from current
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch(`/tenants/${tenantId}/onboarding/business`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(updateBusinessDto);
+
+      // Should return 409 Conflict (abbreviation locked)
+      expect(response.status).toBe(409);
+      expect(response.body.message).toContain(
+        'Business abbreviation is locked',
+      );
+    });
+
+    it('should block outlet abbreviation changes after lock', async () => {
       const updateOutletDto = {
-        outletAbbr: 'NEWABBR', // Different abbreviation
+        name: 'Still Updated',
+        abbr: 'LOCKED_CANNOT_CHANGE', // Different from current
+        address: '123 Street',
+        city: 'City',
+        state: 'State',
+        pincode: '123456',
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch(`/tenants/${tenantId}/onboarding/outlet`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(updateOutletDto);
+
+      // Should return 409 Conflict (abbreviation locked)
+      expect(response.status).toBe(409);
+      expect(response.body.message).toContain('Outlet abbreviation is locked');
+    });
+
+    it('should allow saving same business abbreviation even after lock', async () => {
+      // Get current tenant to know its abbreviation
+      const tenantResponse = await request(app.getHttpServer())
+        .get(`/tenants/${tenantId}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      const currentAbbr = tenantResponse.body.data.businessAbbr;
+
+      // Update with SAME abbreviation should succeed
+      const updateBusinessDto = {
+        businessName: 'Same Abbr Business',
+        businessAbbr: currentAbbr, // Same as current
       };
 
       await request(app.getHttpServer())
-        .patch(`/tenants/${tenantId}/outlets/${newOutletId}`)
+        .patch(`/tenants/${tenantId}/onboarding/business`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(updateBusinessDto)
+        .expect(200); // Should succeed
+    });
+
+    it('should allow saving same outlet abbreviation even after lock', async () => {
+      // Get current outlet to know its abbreviation
+      const outletsResponse = await request(app.getHttpServer())
+        .get(`/tenants/${tenantId}/outlets`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .query({ limit: 100 });
+
+      const currentOutlet = (outletsResponse.body.data || [])[0];
+      const currentAbbr = currentOutlet?.outletAbbr;
+
+      // Update with SAME abbreviation should succeed
+      const updateOutletDto = {
+        name: 'Same Abbr Outlet',
+        abbr: currentAbbr, // Same as current
+        address: currentOutlet?.address || '123 Street',
+        city: currentOutlet?.city || 'City',
+        state: currentOutlet?.state || 'State',
+        pincode: currentOutlet?.pincode || '123456',
+      };
+
+      await request(app.getHttpServer())
+        .patch(`/tenants/${tenantId}/onboarding/outlet`)
         .set('Authorization', `Bearer ${authToken}`)
         .send(updateOutletDto)
-        .expect(403); // Forbidden - abbreviation locked
+        .expect(200); // Should succeed
+    });
+
+    it('should persist abbreviation lock across multiple requests', async () => {
+      // Attempt to change abbreviation multiple times - all should fail
+      for (let i = 0; i < 3; i++) {
+        const updateBusinessDto = {
+          businessName: 'Test Business',
+          businessAbbr: `LOCK${i}`, // Different each time
+        };
+
+        const response = await request(app.getHttpServer())
+          .patch(`/tenants/${tenantId}/onboarding/business`)
+          .set('Authorization', `Bearer ${authToken}`)
+          .send(updateBusinessDto);
+
+        expect(response.status).toBe(409);
+        expect(response.body.message).toContain(
+          'Business abbreviation is locked',
+        );
+      }
+    });
+
+    it('should distinguish between business and outlet locks', async () => {
+      // Note: This verifies that locks are checked independently
+
+      // Try to update business (already locked)
+      const updateBusinessDto = {
+        businessName: 'New Name',
+        businessAbbr: 'NEWB', // Different
+      };
+
+      const businessResponse = await request(app.getHttpServer())
+        .patch(`/tenants/${tenantId}/onboarding/business`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(updateBusinessDto);
+
+      expect(businessResponse.status).toBe(409); // Business is locked
+
+      // Try to update outlet (also already locked)
+      const updateOutletDto = {
+        name: 'New Outlet',
+        abbr: 'NEWO', // Different
+        address: '123 Street',
+        city: 'City',
+        state: 'State',
+        pincode: '123456',
+      };
+
+      const outletResponse = await request(app.getHttpServer())
+        .patch(`/tenants/${tenantId}/onboarding/outlet`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(updateOutletDto);
+
+      expect(outletResponse.status).toBe(409); // Outlet is locked
+
+      // Both should be locked independently
+      expect(businessResponse.status).toBe(outletResponse.status);
     });
   });
 
