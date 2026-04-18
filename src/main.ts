@@ -4,7 +4,6 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { HttpErrorFilter } from './common/filters/http-error.filter';
-import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
 import { GlobalValidationPipe } from './common/pipes/global-validation.pipe';
 
 async function bootstrap() {
@@ -20,9 +19,6 @@ async function bootstrap() {
 
   // Parse cookies from requests
   app.use(cookieParser());
-
-  // Rate limiting middleware (skip for health checks)
-  app.use(RateLimitMiddleware);
 
   // Global validation pipe with custom error formatting
   app.useGlobalPipes(new GlobalValidationPipe());
