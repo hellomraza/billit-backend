@@ -9,10 +9,10 @@ export class Tenant extends Document {
   @Prop({ required: true })
   passwordHash: string;
 
-  @Prop({ required: true })
+  @Prop()
   businessName: string;
 
-  @Prop({ required: true, minlength: 3, maxlength: 6, uppercase: true })
+  @Prop({ minlength: 3, maxlength: 6, uppercase: true })
   businessAbbr: string;
 
   @Prop()

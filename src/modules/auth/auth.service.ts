@@ -55,8 +55,6 @@ export class AuthService {
     const newTenant = new this.tenantModel({
       email,
       passwordHash,
-      businessName: '',
-      businessAbbr: '',
       gstEnabled: false,
       abbrLocked: false,
       onboardingComplete: false,
@@ -99,14 +97,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      tenant: {
-        _id: tenant._id?.toString(),
-        email: tenant.email,
-        businessName: tenant.businessName,
-        businessAbbr: tenant.businessAbbr,
-        gstEnabled: tenant.gstEnabled,
-        onboardingComplete: tenant.onboardingComplete,
-      },
+      tenant,
     };
   }
 
