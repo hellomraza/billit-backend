@@ -13,6 +13,7 @@ export class RequestLoggingMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     const { method, originalUrl, ip } = req;
     const startTime = Date.now();
+    const logger = this.logger;
 
     // Skip logging for health checks and static assets
     if (
@@ -45,11 +46,11 @@ export class RequestLoggingMiddleware implements NestMiddleware {
       const logMessage = `${method} ${originalUrl} ${statusCode} - ${duration}ms [IP: ${ip}] [Size: ${contentLength}B]`;
 
       if (statusColor === 'error') {
-        this.logger.error(logMessage);
+        logger.error(logMessage);
       } else if (statusColor === 'warn') {
-        this.logger.warn(logMessage);
+        logger.warn(logMessage);
       } else {
-        this.logger.debug(logMessage);
+        logger.debug(logMessage);
       }
 
       // Call the original send method
