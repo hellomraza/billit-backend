@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
 import { Model, Types } from 'mongoose';
+import { PasswordResetToken } from '../password-reset/password-reset.schema';
 import { Tenant } from '../tenant/tenant.schema';
 import {
   ChangePasswordDto,
@@ -24,7 +25,8 @@ export class AuthService {
     @InjectModel(Tenant.name) private tenantModel: Model<Tenant>,
     @InjectModel(RefreshSession.name)
     private refreshSessionModel: Model<RefreshSession>,
-    @InjectModel('PasswordResetToken') private passwordResetTokenModel: any,
+    @InjectModel(PasswordResetToken.name)
+    private passwordResetTokenModel: Model<PasswordResetToken>,
     private jwtService: JwtService,
   ) {}
 
@@ -196,6 +198,7 @@ export class AuthService {
     const { email } = forgotPasswordDto;
 
     const tenant = await this.tenantModel.findOne({ email });
+
     if (tenant) {
       // Generate reset token
       const resetToken = this.generateResetToken();
@@ -214,17 +217,23 @@ export class AuthService {
       // In production, send email with resetToken
       // For now, return token (DEV ONLY)
       return { token: resetToken, message: 'Password reset token generated' };
+    } else {
+      // Always return generic response for security
+      return { message: 'If email exists, password reset link has been sent' };
     }
-
-    // Always return generic response for security
-    return { message: 'If email exists, password reset link has been sent' };
   }
 
   /**
    * Reset password using token
    */
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
-    const { token, newPassword } = resetPasswordDto;
+    const { email, token, newPassword } = resetPasswordDto;
+
+    // Find tenant by email
+    const tenant = await this.tenantModel.findOne({ email });
+    if (!tenant) {
+      throw new UnauthorizedException('Tenant not found');
+    }
 
     // Validate password rules
     if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(newPassword)) {
@@ -233,18 +242,24 @@ export class AuthService {
       );
     }
 
-    // Verify token
-    const resetTokenDoc = await this.passwordResetTokenModel.findOne({
+    // Fetch all valid reset tokens for this specific tenant
+    const validTokens = await this.passwordResetTokenModel.find({
+      tenantId: tenant._id,
       used: false,
       expiresAt: { $gt: new Date() },
     });
 
-    if (!resetTokenDoc) {
-      throw new BadRequestException('Invalid or expired reset token');
+    // Find the token that matches the provided token
+    let resetTokenDoc: any = null;
+    for (const tokenDoc of validTokens) {
+      const isTokenValid = await bcrypt.compare(token, tokenDoc.tokenHash);
+      if (isTokenValid) {
+        resetTokenDoc = tokenDoc;
+        break;
+      }
     }
 
-    const isTokenValid = await bcrypt.compare(token, resetTokenDoc.tokenHash);
-    if (!isTokenValid) {
+    if (!resetTokenDoc) {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
@@ -252,7 +267,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     // Update tenant password
-    await this.tenantModel.findByIdAndUpdate(resetTokenDoc.tenantId, {
+    await this.tenantModel.findByIdAndUpdate(tenant._id, {
       passwordHash,
     });
 
@@ -263,7 +278,7 @@ export class AuthService {
 
     // Revoke all refresh sessions for this tenant
     await this.refreshSessionModel.updateMany(
-      { tenantId: resetTokenDoc.tenantId, revokedAt: null },
+      { tenantId: tenant._id, revokedAt: null },
       { revokedAt: new Date() },
     );
   }

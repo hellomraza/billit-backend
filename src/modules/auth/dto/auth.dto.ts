@@ -55,6 +55,15 @@ export class ForgotPasswordDto {
 
 export class ResetPasswordDto {
   @ApiProperty({
+    description: 'Email address of the tenant account',
+    example: 'user@example.com',
+    format: 'email',
+  })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @ApiProperty({
     description: 'Password reset token received via email',
     example: 'reset_token_value',
   })
@@ -121,12 +130,4 @@ export class RefreshResponseDto {
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
   accessToken: string;
-}
-
-export class SuccessMessageDto {
-  @ApiProperty({
-    description: 'Success message',
-    example: 'Operation completed successfully',
-  })
-  message: string;
 }

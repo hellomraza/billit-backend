@@ -15,6 +15,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { SuccessMessageDto } from '../../common/dto/common.dto';
 import { AuthService } from './auth.service';
 import {
   AuthResponseDto,
@@ -24,7 +25,6 @@ import {
   RefreshResponseDto,
   ResetPasswordDto,
   SignupDto,
-  SuccessMessageDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -192,9 +192,7 @@ export class AuthController {
     type: SuccessMessageDto,
   })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    // Always return generic response for security (prevent email enumeration)
-    await this.authService.forgotPassword(forgotPasswordDto);
-    return { message: 'If email exists, password reset link has been sent' };
+    return await this.authService.forgotPassword(forgotPasswordDto);
   }
 
   /**
