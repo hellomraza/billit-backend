@@ -1,19 +1,29 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  HttpStatus,
+  ParseFilePipeBuilder,
+  Post,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
-  ApiBody,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { CsvFileUpload } from 'src/decorator/file-upload.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import {
-  CsvTemplateDto,
-  ImportProductDto,
-  ImportReportDto,
-} from './dto/import.dto';
+import { CsvTemplateDto, ImportReportDto } from './dto/import.dto';
 import { ImportService } from './import.service';
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_ROWS = 1000; // Max 1000 rows excluding header
 @ApiTags('Import')
 @Controller('products/import')
 @UseGuards(JwtAuthGuard)
@@ -56,16 +66,17 @@ export class ImportController {
    * - data: the problematic row data for debugging
    */
   @Post()
+  @UseInterceptors(FileInterceptor('file'))
+  @CsvFileUpload('file', {
+    maxSize: MAX_FILE_SIZE,
+    maxRows: MAX_ROWS,
+  })
   @ApiOperation({
     summary: 'Import products from CSV (contract: Section 12)',
     description:
-      'Bulk import products from CSV with full validation. ' +
+      'Bulk import products from CSV file with full validation. ' +
       'Max 5 MB file size, max 1000 rows. Invalid rows skipped with detailed error report. ' +
       'Creates product records and initializes stock for all tenant outlets.',
-  })
-  @ApiBody({
-    type: ImportProductDto,
-    description: 'CSV content with required columns: name, price, gst_rate',
   })
   @ApiResponse({
     status: 201,
@@ -76,7 +87,7 @@ export class ImportController {
   @ApiResponse({
     status: 400,
     description:
-      'Invalid CSV: missing required headers, file > 5 MB, or > 1000 rows',
+      'Invalid CSV: missing required headers, file > 5 MB, > 1000 rows, or invalid file type',
   })
   @ApiResponse({
     status: 401,
@@ -87,11 +98,44 @@ export class ImportController {
     description: 'Tenant not found or no active outlets',
   })
   async importProducts(
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addMaxSizeValidator({ maxSize: MAX_FILE_SIZE })
+        .build({ errorHttpStatusCode: HttpStatus.BAD_REQUEST }),
+    )
+    file: Express.Multer.File,
     @Req() request: any,
-    @Body() importDto: ImportProductDto,
   ) {
+    // Validate file exists
+    if (!file) {
+      throw new BadRequestException('CSV file is required');
+    }
+
+    // Validate file extension
+    if (!file.originalname.toLowerCase().endsWith('.csv')) {
+      throw new BadRequestException('File must be a CSV file (extension .csv)');
+    }
+
+    // Validate MIME type (accept common CSV MIME types)
+    const validMimeTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/csv',
+      'text/plain', // Some systems send CSV as plain text
+      'application/octet-stream', // Fallback for some browsers
+    ];
+
+    if (!validMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        `Invalid file type. Expected CSV, got ${file.mimetype}. Please upload a valid CSV file.`,
+      );
+    }
+
+    // Extract CSV content from file buffer
+    const csvContent = file.buffer.toString('utf8');
+
     const tenantId = request.user?.sub;
-    return await this.importService.importProducts(tenantId, importDto.csv);
+    return await this.importService.importProducts(tenantId, csvContent);
   }
 
   /**
