@@ -80,14 +80,6 @@ export class ImportService {
       throw new NotFoundException('Tenant not found');
     }
 
-    // Step 2: Validate file size (5 MB max)
-    const fileSizeBytes = Buffer.byteLength(csvContent, 'utf8');
-    if (fileSizeBytes > this.MAX_FILE_SIZE) {
-      throw new BadRequestException(
-        `CSV file exceeds 5 MB size limit (${(fileSizeBytes / 1024 / 1024).toFixed(2)} MB provided)`,
-      );
-    }
-
     // Step 3: Parse CSV and validate structure
     const lines = csvContent.split('\n').filter((line) => line.trim());
 
@@ -109,9 +101,9 @@ export class ImportService {
     this.validateHeaders(headers);
 
     // Step 5: Get all outlets for tenant (for stock initialization)
+
     const outlets = await this.outletModel.find({
       tenantId: new Types.ObjectId(tenantId),
-      isDeleted: false,
     });
 
     if (outlets.length === 0) {
