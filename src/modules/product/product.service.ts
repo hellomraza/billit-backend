@@ -34,7 +34,6 @@ export class ProductService {
   }
 
   async findById(tenantId: string, productId: string): Promise<Product> {
-    console.log(`Finding product with ID ${productId} for tenant ${tenantId}`); // Debug log
     const product = await this.productModel.findOne({
       _id: new Types.ObjectId(productId),
       tenantId: new Types.ObjectId(tenantId),
