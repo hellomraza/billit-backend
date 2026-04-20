@@ -34,8 +34,9 @@ export class ProductService {
   }
 
   async findById(tenantId: string, productId: string): Promise<Product> {
+    console.log(`Finding product with ID ${productId} for tenant ${tenantId}`); // Debug log
     const product = await this.productModel.findOne({
-      _id: productId,
+      _id: new Types.ObjectId(productId),
       tenantId: new Types.ObjectId(tenantId),
       isDeleted: false,
     });
@@ -58,9 +59,15 @@ export class ProductService {
     tenantId: string,
     page: number = 1,
     limit: number = 10,
+    includeDeleted: boolean = false,
   ): Promise<{ data: Product[]; total: number }> {
     const skip = (page - 1) * limit;
-    const query = { tenantId: new Types.ObjectId(tenantId), isDeleted: false };
+    const query: any = { tenantId: new Types.ObjectId(tenantId) };
+
+    // Only exclude deleted products if includeDeleted is false
+    if (!includeDeleted) {
+      query.isDeleted = false;
+    }
 
     const data = await this.productModel.find(query).skip(skip).limit(limit);
     const total = await this.productModel.countDocuments(query);
@@ -88,7 +95,7 @@ export class ProductService {
 
     const product = await this.productModel.findOneAndUpdate(
       {
-        _id: productId,
+        _id: new Types.ObjectId(productId),
         tenantId: new Types.ObjectId(tenantId),
         isDeleted: false,
       },
@@ -127,7 +134,7 @@ export class ProductService {
 
     const product = await this.productModel.findOneAndUpdate(
       {
-        _id: productId,
+        _id: new Types.ObjectId(productId),
         tenantId: new Types.ObjectId(tenantId),
         isDeleted: false,
       },

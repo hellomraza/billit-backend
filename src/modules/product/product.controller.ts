@@ -22,6 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { TenantValidationGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UpdateStockDto } from '../stock/dto/stock.dto';
 import { StockService } from '../stock/stock.service';
 import {
   CreateProductDto,
@@ -82,6 +83,13 @@ export class ProductController {
     default: 10,
     description: 'Records per page',
   })
+  @ApiQuery({
+    name: 'includeDeleted',
+    required: false,
+    default: false,
+    description: 'Include soft-deleted products',
+    example: false,
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated list of products',
@@ -102,11 +110,13 @@ export class ProductController {
     @Param('tenantId') tenantId: string,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
+    @Query('includeDeleted') includeDeleted: string = 'false',
   ) {
     const { data, total } = await this.productService.findAll(
       tenantId,
       parseInt(page),
       parseInt(limit),
+      includeDeleted === 'true',
     );
     return {
       data: data.map((p) => this.productToResponse(p)),
@@ -285,7 +295,7 @@ export class ProductController {
     @Param('tenantId') tenantId: string,
     @Param('productId') productId: string,
     @Query('outletId') outletId: string,
-    @Body() updateStockDto: { quantity: number },
+    @Body() updateStockDto: UpdateStockDto,
   ) {
     // Find the stock record for this product-outlet combination
     const stock = await this.stockService.findByProductAndOutlet(
