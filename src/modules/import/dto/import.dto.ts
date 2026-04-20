@@ -1,15 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
 
 export class ImportProductDto {
   @ApiProperty({
-    description: 'CSV file content (raw text)',
-    example:
-      'name,price,gst_rate,opening_stock,deficit_threshold\nLaptop,99999.99,18,100,5\nChair,5999.99,18,50,3\n',
+    type: 'string',
+    format: 'binary',
+    description:
+      'CSV file (.csv) with columns: name, price, gst_rate, opening_stock (optional), deficit_threshold (optional)',
   })
-  @IsString()
-  @IsNotEmpty()
-  csv: string;
+  file: any; // Express.Multer.File is handled by FileInterceptor
 }
 
 export class ImportErrorDto {
