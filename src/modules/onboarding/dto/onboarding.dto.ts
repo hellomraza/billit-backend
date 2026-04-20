@@ -36,7 +36,7 @@ export class UpdateBusinessDto {
   businessAbbr: string;
 }
 
-export class UpdateOutletDto {
+export class UpdateOnboardingOutletDto {
   @ApiProperty({
     description: 'Outlet name (required)',
     example: 'Main Store',

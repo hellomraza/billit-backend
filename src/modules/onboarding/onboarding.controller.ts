@@ -20,7 +20,7 @@ import {
   OnboardingStatusDto,
   UpdateBusinessDto,
   UpdateGstDto,
-  UpdateOutletDto,
+  UpdateOnboardingOutletDto,
 } from './dto/onboarding.dto';
 import { OnboardingService } from './onboarding.service';
 
@@ -95,7 +95,7 @@ export class OnboardingController {
     summary: 'Update outlet information',
     description: 'Create or update default outlet information',
   })
-  @ApiBody({ type: UpdateOutletDto })
+  @ApiBody({ type: UpdateOnboardingOutletDto })
   @ApiResponse({
     status: 200,
     description: 'Outlet information updated',
@@ -108,7 +108,10 @@ export class OnboardingController {
     status: 401,
     description: 'Unauthorized',
   })
-  async updateOutlet(@Req() request: any, @Body() updateDto: UpdateOutletDto) {
+  async updateOutlet(
+    @Req() request: any,
+    @Body() updateDto: UpdateOnboardingOutletDto,
+  ) {
     const tenantId = request.user?.sub;
     return await this.onboardingService.updateOutlet(tenantId, updateDto);
   }

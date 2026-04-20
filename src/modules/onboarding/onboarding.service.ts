@@ -11,7 +11,7 @@ import { Tenant } from '../tenant/tenant.schema';
 import {
   UpdateBusinessDto,
   UpdateGstDto,
-  UpdateOutletDto,
+  UpdateOnboardingOutletDto,
 } from './dto/onboarding.dto';
 
 @Injectable()
@@ -70,7 +70,7 @@ export class OnboardingService {
   /**
    * Update outlet information (creates first outlet or updates existing)
    */
-  async updateOutlet(tenantId: string, updateDto: UpdateOutletDto) {
+  async updateOutlet(tenantId: string, updateDto: UpdateOnboardingOutletDto) {
     const tenant = await this.tenantModel.findById(tenantId);
     if (!tenant) {
       throw new NotFoundException('Tenant not found');
