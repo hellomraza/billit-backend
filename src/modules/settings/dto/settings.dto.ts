@@ -103,11 +103,3 @@ export class ChangePasswordSettingsDto {
   @MinLength(8)
   newPassword: string;
 }
-
-export class SuccessMessageDto {
-  @ApiProperty({
-    description: 'Success message',
-    example: 'Settings updated successfully',
-  })
-  message: string;
-}

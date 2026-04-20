@@ -14,11 +14,11 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { SuccessMessageDto } from '../../common/dto/common.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   ChangePasswordSettingsDto,
   SettingsResponseDto,
-  SuccessMessageDto,
   UpdateBusinessSettingsDto,
   UpdateGstSettingsDto,
 } from './dto/settings.dto';
