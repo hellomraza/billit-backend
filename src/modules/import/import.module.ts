@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MulterModule } from '@nestjs/platform-express';
 import { Outlet, OutletSchema } from '../outlet/outlet.schema';
 import { ProductModule } from '../product/product.module';
 import { Product, ProductSchema } from '../product/product.schema';
@@ -11,6 +12,11 @@ import { ImportService } from './import.service';
 
 @Module({
   imports: [
+    MulterModule.register({
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5 MB
+      },
+    }),
     MongooseModule.forFeature([
       { name: Product.name, schema: ProductSchema },
       { name: Stock.name, schema: StockSchema },
