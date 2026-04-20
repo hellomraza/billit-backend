@@ -75,14 +75,14 @@ export class ProductService {
   }
 
   async search(tenantId: string, searchText: string): Promise<Product[]> {
-    return this.productModel.find(
-      {
-        tenantId: new Types.ObjectId(tenantId),
-        isDeleted: false,
-        $text: { $search: searchText },
-      },
-      { score: { $meta: 'textScore' } },
-    );
+    // Use case-insensitive regex matching for partial product name matching
+    // e.g., 'lap' matches 'Laptop', 'MacBook Pro', etc.
+    const regex = new RegExp(searchText, 'i');
+    return this.productModel.find({
+      tenantId: new Types.ObjectId(tenantId),
+      isDeleted: false,
+      name: { $regex: regex },
+    });
   }
 
   async update(
