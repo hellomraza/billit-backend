@@ -25,8 +25,8 @@ export class StockService {
   ): Promise<Stock> {
     const stock = new this.stockModel({
       tenantId: new Types.ObjectId(tenantId),
-      productId: createStockDto.productId,
-      outletId: createStockDto.outletId,
+      productId: new Types.ObjectId(createStockDto.productId),
+      outletId: new Types.ObjectId(createStockDto.outletId),
       quantity: createStockDto.quantity,
     });
 
