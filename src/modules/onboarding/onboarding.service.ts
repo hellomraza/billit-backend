@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Outlet } from '../outlet/outlet.schema';
 import { Tenant } from '../tenant/tenant.schema';
 import {
@@ -84,7 +84,7 @@ export class OnboardingService {
     if (!outlet) {
       // Create first outlet
       const newOutlet = new this.outletModel({
-        tenantId,
+        tenantId: new Types.ObjectId(tenantId),
         outletName: updateDto.name,
         outletAbbr: updateDto.abbr?.toUpperCase(),
         address: updateDto.address,
