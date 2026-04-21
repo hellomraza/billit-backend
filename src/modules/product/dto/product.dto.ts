@@ -152,3 +152,11 @@ export class ProductResponseDto {
   })
   updatedAt: Date;
 }
+
+export class ProductWithStockResponseDto extends ProductResponseDto {
+  @ApiProperty({
+    description: 'Current stock level for the product',
+    example: 50,
+  })
+  stock: number;
+}

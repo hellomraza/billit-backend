@@ -27,6 +27,7 @@ import { StockService } from '../stock/stock.service';
 import {
   CreateProductDto,
   ProductResponseDto,
+  ProductWithStockResponseDto,
   UpdateProductDto,
 } from './dto/product.dto';
 import { ProductService } from './product.service';
@@ -72,6 +73,12 @@ export class ProductController {
     example: '507f1f77bcf86cd799439011',
   })
   @ApiQuery({
+    name: 'outletId',
+    required: true,
+    description: 'Outlet ID (MongoDB ObjectId) to scope stock information',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
     name: 'page',
     required: false,
     default: 1,
@@ -108,18 +115,21 @@ export class ProductController {
   @Get()
   async findAll(
     @Param('tenantId') tenantId: string,
+    @Query('outletId') outletId: string,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
     @Query('includeDeleted') includeDeleted: string = 'false',
   ) {
     const { data, total } = await this.productService.findAll(
       tenantId,
+      outletId,
       parseInt(page),
       parseInt(limit),
       includeDeleted === 'true',
     );
+
     return {
-      data: data.map((p) => this.productToResponse(p)),
+      data: data.map((p) => this.productToResponseWithStock(p)),
       total,
       page: parseInt(page),
       limit: parseInt(limit),
@@ -138,6 +148,12 @@ export class ProductController {
     description: 'Search query text',
     example: 'Laptop',
   })
+  @ApiQuery({
+    name: 'outletId',
+    required: true,
+    description: 'Outlet ID to filter stock quantities',
+    example: '507f1f77bcf86cd799439011',
+  })
   @ApiResponse({
     status: 200,
     description: 'Search results',
@@ -154,10 +170,15 @@ export class ProductController {
   async search(
     @Param('tenantId') tenantId: string,
     @Query('q') searchText: string,
+    @Query('outletId') outletId: string,
   ) {
-    const products = await this.productService.search(tenantId, searchText);
+    const products = await this.productService.search(
+      tenantId,
+      searchText,
+      outletId,
+    );
     return {
-      data: products.map((p) => this.productToResponse(p)),
+      data: products.map((p) => this.productToResponseWithStock(p)),
     };
   }
 
@@ -384,6 +405,25 @@ export class ProductController {
       isDeleted: product.isDeleted,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
+    };
+  }
+
+  private productToResponseWithStock(
+    product: any,
+  ): ProductWithStockResponseDto {
+    return {
+      _id: product._id?.toString(),
+      tenantId: product.tenantId?.toString(),
+      name: product.name,
+      basePrice: product.basePrice
+        ? parseFloat(product.basePrice.toString())
+        : 0,
+      gstRate: product.gstRate,
+      deficitThreshold: product.deficitThreshold,
+      isDeleted: product.isDeleted,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      stock: product.stock,
     };
   }
 }

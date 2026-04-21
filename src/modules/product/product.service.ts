@@ -4,10 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, PipelineStage, Types } from 'mongoose';
 import { DeficitStatus } from '../deficit/deficit.schema';
 import { DeficitService } from '../deficit/deficit.service';
-import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
+import {
+  CreateProductDto,
+  ProductWithStockResponseDto,
+  UpdateProductDto,
+} from './dto/product.dto';
 import { Product } from './product.schema';
 
 @Injectable()
@@ -56,33 +60,122 @@ export class ProductService {
 
   async findAll(
     tenantId: string,
+    outletId: string,
     page: number = 1,
     limit: number = 10,
     includeDeleted: boolean = false,
-  ): Promise<{ data: Product[]; total: number }> {
+  ): Promise<{ data: ProductWithStockResponseDto[]; total: number }> {
     const skip = (page - 1) * limit;
-    const query: any = { tenantId: new Types.ObjectId(tenantId) };
+    const matchStage: PipelineStage.Match['$match'] = {
+      tenantId: new Types.ObjectId(tenantId),
+    };
 
     // Only exclude deleted products if includeDeleted is false
     if (!includeDeleted) {
-      query.isDeleted = false;
+      matchStage.isDeleted = false;
     }
 
-    const data = await this.productModel.find(query).skip(skip).limit(limit);
-    const total = await this.productModel.countDocuments(query);
+    // Aggregation pipeline to join products with their stock quantity for specific outlet
+    const pipeline: PipelineStage[] = [
+      { $match: { tenantId: new Types.ObjectId(tenantId), isDeleted: false } },
+      {
+        $lookup: {
+          from: 'stocks', // collection name (IMPORTANT)
+          let: { productId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$productId', '$$productId'] },
+                    { $eq: ['$tenantId', new Types.ObjectId(tenantId)] },
+                    { $eq: ['$outletId', new Types.ObjectId(outletId)] },
+                  ],
+                },
+              },
+            },
+
+            { $project: { quantity: 1, _id: 0 } },
+          ],
+          as: 'stockData',
+        },
+      },
+      {
+        $addFields: {
+          stock: { $ifNull: [{ $arrayElemAt: ['$stockData.quantity', 0] }, 0] },
+        },
+      },
+      { $project: { stockData: 0 } },
+      { $skip: skip },
+      { $limit: limit },
+    ];
+
+    const data: ProductWithStockResponseDto[] =
+      await this.productModel.aggregate(pipeline);
+
+    // Get total count using aggregation pipeline
+    const countPipeline: PipelineStage[] = [
+      { $match: matchStage },
+      { $count: 'total' },
+    ];
+
+    const countResult: { total: number }[] =
+      await this.productModel.aggregate(countPipeline);
+    const total = countResult.length > 0 ? countResult[0].total : 0;
 
     return { data, total };
   }
 
-  async search(tenantId: string, searchText: string): Promise<Product[]> {
+  async search(
+    tenantId: string,
+    searchText: string,
+    outletId: string,
+  ): Promise<ProductWithStockResponseDto[]> {
     // Use case-insensitive regex matching for partial product name matching
     // e.g., 'lap' matches 'Laptop', 'MacBook Pro', etc.
     const regex = new RegExp(searchText, 'i');
-    return this.productModel.find({
-      tenantId: new Types.ObjectId(tenantId),
-      isDeleted: false,
-      name: { $regex: regex },
-    });
+
+    // Aggregation pipeline to search products and join with their stock quantity for specific outlet
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          tenantId: new Types.ObjectId(tenantId),
+          isDeleted: false,
+          name: { $regex: regex },
+        },
+      },
+      {
+        $lookup: {
+          from: 'stocks', // collection name (IMPORTANT)
+          let: { productId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$productId', '$$productId'] },
+                    { $eq: ['$tenantId', new Types.ObjectId(tenantId)] },
+                    { $eq: ['$outletId', new Types.ObjectId(outletId)] },
+                  ],
+                },
+              },
+            },
+            { $project: { quantity: 1, _id: 0 } },
+          ],
+          as: 'stockData',
+        },
+      },
+      {
+        $addFields: {
+          stock: {
+            $ifNull: [{ $arrayElemAt: ['$stockData.quantity', 0] }, 0],
+          },
+        },
+      },
+      { $project: { stockData: 0 } },
+    ];
+
+    return this.productModel.aggregate(pipeline);
   }
 
   async update(
