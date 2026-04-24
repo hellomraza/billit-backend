@@ -21,8 +21,8 @@ export class OutletService {
 
   async findById(tenantId: string, outletId: string): Promise<Outlet> {
     const outlet = await this.outletModel.findOne({
-      _id: outletId,
-      tenantId: tenantId,
+      _id: new Types.ObjectId(outletId),
+      tenantId: new Types.ObjectId(tenantId),
     });
 
     if (!outlet) {
@@ -44,7 +44,7 @@ export class OutletService {
     limit: number = 10,
   ): Promise<{ data: Outlet[]; total: number }> {
     const skip = (page - 1) * limit;
-    const query = { tenantId };
+    const query = { tenantId: new Types.ObjectId(tenantId) };
 
     const data = await this.outletModel.find(query).skip(skip).limit(limit);
 
@@ -123,7 +123,10 @@ export class OutletService {
     session?: ClientSession,
   ): Promise<Outlet> {
     const outlet = await this.outletModel.findOneAndUpdate(
-      { _id: outletId, tenantId: new Types.ObjectId(tenantId) },
+      {
+        _id: new Types.ObjectId(outletId),
+        tenantId: new Types.ObjectId(tenantId),
+      },
       { abbrLocked: locked },
       { new: true, session },
     );

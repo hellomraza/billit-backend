@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsEnum,
   IsMongoId,
@@ -151,4 +152,36 @@ export class DeficitResponseDto {
     example: '2026-04-13T10:30:00.000Z',
   })
   updatedAt: Date;
+}
+
+export class GetAllWithStatusQueryDto {
+  @ApiProperty({
+    description: 'Filter deficits by status',
+    example: 'PENDING',
+    enum: ['PENDING', 'RESOLVED'],
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(DeficitStatus)
+  status: DeficitStatus;
+
+  @ApiProperty({
+    description: 'Page number for pagination',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  page: number;
+
+  @ApiProperty({
+    description: 'Number of records per page for pagination',
+    example: 10,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  limit: number;
 }

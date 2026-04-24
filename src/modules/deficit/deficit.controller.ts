@@ -28,7 +28,10 @@ import {
   ResolveAdjustmentDto,
   ResolveStockAdditionDto,
 } from './dto/deficit-resolution.dto';
-import { DeficitResponseDto } from './dto/deficit.dto';
+import {
+  DeficitResponseDto,
+  GetAllWithStatusQueryDto,
+} from './dto/deficit.dto';
 
 @UseGuards(JwtAuthGuard, TenantValidationGuard)
 @ApiBearerAuth('access-token')
@@ -179,6 +182,79 @@ export class DeficitController {
     };
   }
 
+  @ApiOperation({
+    summary:
+      'Get all pending deficits grouped by product with outlet breakdown',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Deficits grouped by product',
+    schema: {
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/DeficitGroupedByProductDto' },
+        },
+      },
+    },
+  })
+  @Get('grouped-by-product')
+  async getGroupedByProduct(@Param('tenantId') tenantId: string) {
+    const data =
+      await this.deficitService.findPendingGroupedByProduct(tenantId);
+    return { data };
+  }
+
+  @ApiOperation({
+    summary: 'Get all deficits with optional status filter (paginated)',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['PENDING', 'RESOLVED'],
+    description: 'Filter by status',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    default: 1,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    default: 20,
+    description: 'Records per page',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated deficits list with status filter',
+    type: DeficitListResponseDto,
+  })
+  @Get('with-status')
+  async getAllWithStatus(
+    @Param('tenantId') tenantId: string,
+    @Query() { limit, page, status }: GetAllWithStatusQueryDto,
+  ) {
+    const { data, total } = await this.deficitService.findAllWithStatus(
+      tenantId,
+      status,
+      page,
+      limit,
+    );
+    return { data, total, page, limit };
+  }
+
   @ApiOperation({ summary: 'Get deficit record by ID' })
   @ApiParam({
     name: 'tenantId',
@@ -317,86 +393,6 @@ export class DeficitController {
       outletId,
     );
     return { totalQuantity };
-  }
-
-  @ApiOperation({
-    summary:
-      'Get all pending deficits grouped by product with outlet breakdown',
-  })
-  @ApiParam({
-    name: 'tenantId',
-    description: 'Tenant ID (MongoDB ObjectId)',
-    example: '507f1f77bcf86cd799439011',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Deficits grouped by product',
-    schema: {
-      properties: {
-        data: {
-          type: 'array',
-          items: { $ref: '#/components/schemas/DeficitGroupedByProductDto' },
-        },
-      },
-    },
-  })
-  @Get('grouped-by-product')
-  async getGroupedByProduct(@Param('tenantId') tenantId: string) {
-    const data =
-      await this.deficitService.findPendingGroupedByProduct(tenantId);
-    return { data };
-  }
-
-  @ApiOperation({
-    summary: 'Get all deficits with optional status filter (paginated)',
-  })
-  @ApiParam({
-    name: 'tenantId',
-    description: 'Tenant ID (MongoDB ObjectId)',
-    example: '507f1f77bcf86cd799439011',
-  })
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    enum: ['PENDING', 'RESOLVED'],
-    description: 'Filter by status',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    default: 1,
-    description: 'Page number',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    default: 20,
-    description: 'Records per page',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Paginated deficits list with status filter',
-    type: DeficitListResponseDto,
-  })
-  @Get('with-status')
-  async getAllWithStatus(
-    @Param('tenantId') tenantId: string,
-    @Query('status') status?: string,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '20',
-  ) {
-    const { data, total } = await this.deficitService.findAllWithStatus(
-      tenantId,
-      status as any,
-      parseInt(page),
-      parseInt(limit),
-    );
-    return {
-      data,
-      total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-    };
   }
 
   @ApiOperation({

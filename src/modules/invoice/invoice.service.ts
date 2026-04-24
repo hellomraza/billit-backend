@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Types } from 'mongoose';
+import { ClientSession, Model, QueryFilter, Types } from 'mongoose';
 import { DatabaseService } from '../../database/database.service';
 import { DailyCounterService } from '../daily-counter/daily-counter.service';
 import { DeficitRecord } from '../deficit/deficit.schema';
@@ -13,10 +13,6 @@ import { StockService } from '../stock/stock.service';
 import { TenantService } from '../tenant/tenant.service';
 import { CreateInvoiceDto } from './dto/invoice-create.dto';
 import { Invoice, InvoiceItem } from './invoice.schema';
-
-interface InvoiceItemWithStock extends InvoiceItem {
-  currentStock?: number;
-}
 
 interface InsufficientStockDetail {
   productId: string;
@@ -300,7 +296,7 @@ export class InvoiceService {
 
   async findById(tenantId: string, invoiceId: string): Promise<Invoice> {
     const invoice = await this.invoiceModel.findOne({
-      _id: invoiceId,
+      _id: new Types.ObjectId(invoiceId),
       tenantId: new Types.ObjectId(tenantId),
       isDeleted: false,
     });
@@ -360,7 +356,7 @@ export class InvoiceService {
 
     const skip = (page - 1) * limit;
 
-    const query: any = {
+    const query: QueryFilter<Invoice> = {
       tenantId: new Types.ObjectId(tenantId),
       isDeleted: false,
     };
@@ -405,7 +401,8 @@ export class InvoiceService {
       .find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     const total = await this.invoiceModel.countDocuments(query);
 

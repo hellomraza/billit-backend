@@ -290,8 +290,8 @@ export class InvoiceController {
     @Query('productId') productId?: string,
   ) {
     // Cap limit to 100
-    let parsedLimit = Math.min(parseInt(limit) || 20, 100);
-    let parsedPage = Math.max(parseInt(page) || 1, 1);
+    const parsedLimit = Math.min(parseInt(limit) || 20, 100);
+    const parsedPage = Math.max(parseInt(page) || 1, 1);
 
     const { data, total } = await this.invoiceService.findWithFilters(
       tenantId,
@@ -392,6 +392,7 @@ export class InvoiceController {
         gstAmount: this.parseDecimal(item.gstAmount),
         lineTotal: this.parseDecimal(item.lineTotal),
       })),
+      gstEnabled: invoice.gstEnabled,
       subtotal: this.parseDecimal(invoice.subtotal),
       gstTotal: this.parseDecimal(invoice.totalGstAmount),
       grandTotal: this.parseDecimal(invoice.grandTotal),
@@ -421,6 +422,7 @@ export class InvoiceController {
       createdAt: invoice.createdAt?.toISOString(),
       businessName: invoice.businessName,
       itemCount: invoice.items.length,
+      gstEnabled: invoice.gstEnabled,
       subtotal: this.parseDecimal(invoice.subtotal),
       gstTotal: this.parseDecimal(invoice.totalGstAmount),
       grandTotal: this.parseDecimal(invoice.grandTotal),

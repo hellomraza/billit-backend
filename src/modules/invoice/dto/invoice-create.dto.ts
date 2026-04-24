@@ -225,6 +225,12 @@ export class CreateInvoiceResponseDto {
   items: InvoiceItemResponseDto[];
 
   @ApiProperty({
+    description: 'Whether GST was enabled for this invoice',
+    type: 'boolean',
+  })
+  gstEnabled: boolean;
+
+  @ApiProperty({
     description: 'Subtotal (before GST)',
     example: 100000,
   })
@@ -399,6 +405,12 @@ export class InvoiceListResponseDto {
     example: '507f1f77bcf86cd799439011',
   })
   invoiceId: string;
+
+  @ApiProperty({
+    description: 'Whether GST was enabled for this invoice',
+    example: true,
+  })
+  gstEnabled: boolean;
 
   @ApiProperty({
     description: 'Creation date',
