@@ -18,11 +18,11 @@ export class DraftController {
 
   @Post('sync')
   @ApiOperation({
-    summary: 'Sync draft (authenticated route wiring)',
+    summary: 'Sync draft (upsert by tenant + clientDraftId)',
   })
   @ApiResponse({
     status: 200,
-    description: 'Draft sync route reached',
+    description: 'Draft synced successfully',
   })
   @ApiResponse({
     status: 401,
