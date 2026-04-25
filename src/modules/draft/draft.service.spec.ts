@@ -43,6 +43,38 @@ class InMemoryDraftModel {
     return doc;
   }
 
+  find(filter: Record<string, any>) {
+    const result = this.docs.filter((record) => {
+      const tenantMatches =
+        record.tenantId?.toString() === filter.tenantId?.toString();
+      const outletMatches =
+        record.outletId?.toString() === filter.outletId?.toString();
+      const deletedMatches = record.isDeleted === filter.isDeleted;
+
+      return tenantMatches && outletMatches && deletedMatches;
+    });
+
+    return {
+      sort: (sortSpec: Record<string, 1 | -1>) => ({
+        exec: async () =>
+          [...result].sort((left, right) => {
+            const sortKey = Object.keys(sortSpec)[0];
+            const direction = sortSpec[sortKey];
+            const leftValue = new Date(left[sortKey]).getTime();
+            const rightValue = new Date(right[sortKey]).getTime();
+
+            return direction === 1
+              ? leftValue - rightValue
+              : rightValue - leftValue;
+          }),
+      }),
+    };
+  }
+
+  seed(document: Record<string, any>) {
+    this.docs.push(document);
+  }
+
   getAllDocuments() {
     return this.docs;
   }
@@ -109,5 +141,102 @@ describe('DraftService', () => {
         paymentMethod: DraftPaymentMethod.CASH,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('returns active drafts for the default outlet ordered by updatedAt ascending', async () => {
+    const draftModel = new InMemoryDraftModel();
+    const tenantId = new Types.ObjectId().toString();
+    const defaultOutletId = new Types.ObjectId();
+    const outletService = {
+      getDefault: jest.fn().mockResolvedValue({ _id: defaultOutletId }),
+    } as any;
+
+    draftModel.seed({
+      _id: new Types.ObjectId(),
+      tenantId: new Types.ObjectId(tenantId),
+      outletId: defaultOutletId,
+      clientDraftId: 'draft-2',
+      tabLabel: 'Second',
+      items: [],
+      customerName: null,
+      customerPhone: null,
+      paymentMethod: DraftPaymentMethod.CASH,
+      isDeleted: false,
+      createdAt: new Date('2026-01-01T10:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T12:00:00.000Z'),
+      syncedAt: new Date('2026-01-01T11:00:00.000Z'),
+    });
+
+    draftModel.seed({
+      _id: new Types.ObjectId(),
+      tenantId: new Types.ObjectId(tenantId),
+      outletId: defaultOutletId,
+      clientDraftId: 'draft-1',
+      tabLabel: 'First',
+      items: [],
+      customerName: null,
+      customerPhone: null,
+      paymentMethod: DraftPaymentMethod.CARD,
+      isDeleted: false,
+      createdAt: new Date('2026-01-01T09:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+      syncedAt: new Date('2026-01-01T09:30:00.000Z'),
+    });
+
+    draftModel.seed({
+      _id: new Types.ObjectId(),
+      tenantId: new Types.ObjectId(tenantId),
+      outletId: defaultOutletId,
+      clientDraftId: 'deleted-draft',
+      tabLabel: 'Deleted',
+      items: [],
+      customerName: null,
+      customerPhone: null,
+      paymentMethod: DraftPaymentMethod.UPI,
+      isDeleted: true,
+      createdAt: new Date('2026-01-01T08:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T08:30:00.000Z'),
+      syncedAt: new Date('2026-01-01T08:15:00.000Z'),
+    });
+
+    draftModel.seed({
+      _id: new Types.ObjectId(),
+      tenantId: new Types.ObjectId(tenantId),
+      outletId: new Types.ObjectId(),
+      clientDraftId: 'other-outlet',
+      tabLabel: 'Other outlet',
+      items: [],
+      customerName: null,
+      customerPhone: null,
+      paymentMethod: DraftPaymentMethod.CASH,
+      isDeleted: false,
+      createdAt: new Date('2026-01-01T07:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T07:30:00.000Z'),
+      syncedAt: new Date('2026-01-01T07:15:00.000Z'),
+    });
+
+    const service = new DraftService(draftModel as any, outletService);
+
+    const drafts = await service.findAll(tenantId);
+
+    expect(outletService.getDefault).toHaveBeenCalledWith(tenantId);
+    expect(drafts).toHaveLength(2);
+    expect(drafts.map((draft) => draft.clientDraftId)).toEqual([
+      'draft-1',
+      'draft-2',
+    ]);
+  });
+
+  it('returns an empty array when there are no active drafts', async () => {
+    const draftModel = new InMemoryDraftModel();
+    const outletService = {
+      getDefault: jest.fn().mockResolvedValue({ _id: new Types.ObjectId() }),
+    } as any;
+
+    const service = new DraftService(draftModel as any, outletService);
+
+    await expect(
+      service.findAll(new Types.ObjectId().toString()),
+    ).resolves.toEqual([]);
   });
 });

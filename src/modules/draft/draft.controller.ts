@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -31,5 +31,43 @@ export class DraftController {
   async syncDraft(@Req() request: any, @Body() syncDraftDto: SyncDraftDto) {
     const tenantId = request.user?.sub;
     return this.draftService.syncDraft(tenantId, syncDraftDto);
+  }
+
+  @Get()
+  @ApiOperation({
+    summary:
+      'Get all active drafts for the authenticated tenant default outlet',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Drafts retrieved successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async findAll(@Req() request: any) {
+    const tenantId = request.user?.sub;
+    const drafts = await this.draftService.findAll(tenantId);
+
+    return {
+      drafts: drafts.map((draft) => this.draftToResponse(draft)),
+    };
+  }
+
+  private draftToResponse(draft: any) {
+    return {
+      id: draft._id?.toString(),
+      clientDraftId: draft.clientDraftId,
+      tabLabel: draft.tabLabel ?? null,
+      items: draft.items,
+      customerName: draft.customerName ?? null,
+      customerPhone: draft.customerPhone ?? null,
+      paymentMethod: draft.paymentMethod ?? null,
+      isDeleted: draft.isDeleted,
+      createdAt: draft.createdAt,
+      updatedAt: draft.updatedAt,
+      syncedAt: draft.syncedAt ?? null,
+    };
   }
 }

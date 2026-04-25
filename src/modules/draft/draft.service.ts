@@ -60,4 +60,17 @@ export class DraftService {
       runValidators: true,
     });
   }
+
+  async findAll(tenantId: string) {
+    const defaultOutlet = await this.outletService.getDefault(tenantId);
+
+    return this.draftModel
+      .find({
+        tenantId: new Types.ObjectId(tenantId),
+        outletId: defaultOutlet._id,
+        isDeleted: false,
+      })
+      .sort({ updatedAt: 1 })
+      .exec();
+  }
 }
