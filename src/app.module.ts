@@ -9,6 +9,7 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DailyCounterModule } from './modules/daily-counter/daily-counter.module';
 import { DeficitModule } from './modules/deficit/deficit.module';
+import { DraftModule } from './modules/draft/draft.module';
 import { HealthModule } from './modules/health/health.module';
 import { ImportModule } from './modules/import/import.module';
 import { InvoiceModule } from './modules/invoice/invoice.module';
@@ -35,6 +36,7 @@ import { TenantModule } from './modules/tenant/tenant.module';
     ),
     DatabaseModule,
     AuthModule,
+    DraftModule,
     OnboardingModule,
     SettingsModule,
     ImportModule,
