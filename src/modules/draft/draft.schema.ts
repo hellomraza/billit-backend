@@ -62,3 +62,4 @@ export const DraftSchema = SchemaFactory.createForClass(Draft);
 
 // Indexes
 DraftSchema.index({ tenantId: 1, isDeleted: 1 });
+DraftSchema.index({ tenantId: 1, clientDraftId: 1 }, { unique: true });
