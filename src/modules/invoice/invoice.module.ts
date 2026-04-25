@@ -4,6 +4,7 @@ import { DatabaseModule } from '../../database/database.module';
 import { DailyCounterModule } from '../daily-counter/daily-counter.module';
 import { DeficitModule } from '../deficit/deficit.module';
 import { DeficitRecord, DeficitRecordSchema } from '../deficit/deficit.schema';
+import { DraftModule } from '../draft/draft.module';
 import { OutletModule } from '../outlet/outlet.module';
 import { ProductModule } from '../product/product.module';
 import { StockAuditModule } from '../stock-audit/stock-audit.module';
@@ -27,6 +28,7 @@ import { InvoiceService } from './invoice.service';
     forwardRef(() => TenantModule),
     forwardRef(() => OutletModule),
     forwardRef(() => ProductModule),
+    DraftModule,
   ],
   providers: [InvoiceService],
   controllers: [InvoiceController],

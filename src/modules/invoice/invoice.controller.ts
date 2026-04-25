@@ -7,6 +7,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -22,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { TenantValidationGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { DraftService } from '../draft/draft.service';
 import {
   CreateInvoiceDto,
   CreateInvoiceResponseDto,
@@ -37,7 +39,10 @@ import { InvoiceService } from './invoice.service';
 @ApiTags('Invoices')
 @Controller('tenants/:tenantId/invoices')
 export class InvoiceController {
-  constructor(private readonly invoiceService: InvoiceService) {}
+  constructor(
+    private readonly invoiceService: InvoiceService,
+    private readonly draftService: DraftService,
+  ) {}
 
   /**
    * Create invoice with two-phase validation:
@@ -120,6 +125,11 @@ export class InvoiceController {
 
     // If invoice already exists (idempotent replay), return 200 with existing invoice
     if (validationResult.existingInvoice) {
+      await this.softDeleteDraftIfPresent(
+        tenantId,
+        createInvoiceDto.clientDraftId,
+      );
+
       return {
         statusCode: 200,
         message: 'Invoice already exists (idempotent replay)',
@@ -172,6 +182,11 @@ export class InvoiceController {
     const invoice = await this.invoiceService.create(
       tenantId,
       createInvoiceDto,
+    );
+
+    await this.softDeleteDraftIfPresent(
+      tenantId,
+      createInvoiceDto.clientDraftId,
     );
 
     return {
@@ -479,5 +494,24 @@ export class InvoiceController {
     if (typeof value === 'string') return parseFloat(value);
     // Handle Decimal128 objects
     return parseFloat(value.toString?.() || '0');
+  }
+
+  private async softDeleteDraftIfPresent(
+    tenantId: string,
+    clientDraftId?: string,
+  ): Promise<void> {
+    if (!clientDraftId) {
+      return;
+    }
+
+    try {
+      await this.draftService.softDelete(tenantId, clientDraftId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return;
+      }
+
+      throw error;
+    }
   }
 }
