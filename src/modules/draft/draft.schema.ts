@@ -22,19 +22,19 @@ export class Draft {
   _id?: Types.ObjectId;
 
   @Prop({ required: true })
-  clientDraftId: string;
+  clientDraftId!: string;
 
   @Prop({ required: true, type: Types.ObjectId })
-  tenantId: Types.ObjectId;
+  tenantId!: Types.ObjectId;
 
   @Prop({ required: true, type: Types.ObjectId })
-  outletId: Types.ObjectId;
+  outletId!: Types.ObjectId;
 
   @Prop({ maxlength: 50, default: null })
   tabLabel?: string | null;
 
   @Prop({ required: true, type: [Object], default: [] })
-  items: DraftItem[];
+  items!: DraftItem[];
 
   @Prop({ default: null })
   customerName?: string | null;
@@ -46,16 +46,19 @@ export class Draft {
   paymentMethod?: DraftPaymentMethod | null;
 
   @Prop({ default: false })
-  isDeleted: boolean;
+  isDeleted!: boolean;
 
   @Prop({ default: null })
   syncedAt?: Date | null;
 
   @Prop()
-  createdAt: Date;
+  createdAt!: Date;
 
   @Prop()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 export const DraftSchema = SchemaFactory.createForClass(Draft);
+
+// Indexes
+DraftSchema.index({ tenantId: 1, isDeleted: 1 });
