@@ -88,6 +88,15 @@ export class CreateInvoiceDto {
   clientGeneratedId: string;
 
   @ApiProperty({
+    description: 'Client-generated draft identifier (UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440001',
+    required: false,
+  })
+  @IsOptional()
+  @IsUUID()
+  clientDraftId?: string;
+
+  @ApiProperty({
     description: 'Outlet ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
