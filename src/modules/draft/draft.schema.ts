@@ -21,7 +21,7 @@ export type DraftDocument = Draft & Document;
 export class Draft {
   _id?: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   clientDraftId!: string;
 
   @Prop({ required: true, type: Types.ObjectId })
@@ -30,25 +30,25 @@ export class Draft {
   @Prop({ required: true, type: Types.ObjectId })
   outletId!: Types.ObjectId;
 
-  @Prop({ maxlength: 50, default: null })
+  @Prop({ type: String, maxlength: 50, default: null })
   tabLabel?: string | null;
 
   @Prop({ required: true, type: [Object], default: [] })
   items!: DraftItem[];
 
-  @Prop({ default: null })
+  @Prop({ type: String, default: null })
   customerName?: string | null;
 
-  @Prop({ default: null })
+  @Prop({ type: String, default: null })
   customerPhone?: string | null;
 
-  @Prop({ enum: DraftPaymentMethod, default: null })
+  @Prop({ type: String, enum: DraftPaymentMethod, default: null })
   paymentMethod?: DraftPaymentMethod | null;
 
   @Prop({ default: false })
   isDeleted!: boolean;
 
-  @Prop({ default: null })
+  @Prop({ type: Date, default: null })
   syncedAt?: Date | null;
 
   @Prop()
