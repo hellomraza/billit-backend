@@ -284,4 +284,32 @@ describe('DraftService', () => {
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('never performs a hard delete when soft deleting a draft', async () => {
+    const tenantId = new Types.ObjectId().toString();
+    const draftModel = {
+      findOneAndUpdate: jest.fn().mockResolvedValue({
+        _id: new Types.ObjectId(),
+        tenantId: new Types.ObjectId(tenantId),
+        clientDraftId: 'draft-no-hard-delete',
+        isDeleted: true,
+      }),
+      findOneAndDelete: jest.fn(),
+      deleteOne: jest.fn(),
+      deleteMany: jest.fn(),
+      findByIdAndDelete: jest.fn(),
+      remove: jest.fn(),
+    } as any;
+    const outletService = {} as any;
+    const service = new DraftService(draftModel, outletService);
+
+    await service.softDelete(tenantId, 'draft-no-hard-delete');
+
+    expect(draftModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+    expect(draftModel.findOneAndDelete).not.toHaveBeenCalled();
+    expect(draftModel.deleteOne).not.toHaveBeenCalled();
+    expect(draftModel.deleteMany).not.toHaveBeenCalled();
+    expect(draftModel.findByIdAndDelete).not.toHaveBeenCalled();
+    expect(draftModel.remove).not.toHaveBeenCalled();
+  });
 });
