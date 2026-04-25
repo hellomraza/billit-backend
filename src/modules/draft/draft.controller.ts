@@ -1,17 +1,28 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { TenantValidationGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Draft } from './draft.schema';
 import { DraftService } from './draft.service';
 import { SyncDraftDto } from './dto/sync-draft.dto';
 
 @ApiTags('Drafts')
-@Controller('drafts')
-@UseGuards(JwtAuthGuard)
+@Controller('tenants/:tenantId/drafts')
+@UseGuards(JwtAuthGuard, TenantValidationGuard)
 @ApiBearerAuth('access-token')
 export class DraftController {
   constructor(private readonly draftService: DraftService) {}
@@ -28,8 +39,15 @@ export class DraftController {
     status: 401,
     description: 'Unauthorized',
   })
-  async syncDraft(@Req() request: any, @Body() syncDraftDto: SyncDraftDto) {
-    const tenantId = request.user?.sub;
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  async syncDraft(
+    @Param('tenantId') tenantId: string,
+    @Body() syncDraftDto: SyncDraftDto,
+  ) {
     return this.draftService.syncDraft(tenantId, syncDraftDto);
   }
 
@@ -46,8 +64,12 @@ export class DraftController {
     status: 401,
     description: 'Unauthorized',
   })
-  async findAll(@Req() request: any) {
-    const tenantId = request.user?.sub;
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  async findAll(@Param('tenantId') tenantId: string) {
     const drafts = await this.draftService.findAll(tenantId);
 
     return {
@@ -55,7 +77,37 @@ export class DraftController {
     };
   }
 
-  private draftToResponse(draft: any) {
+  @Delete(':clientDraftId')
+  @ApiOperation({
+    summary: 'Soft delete a draft by clientDraftId',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Draft soft deleted successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Draft not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  async softDelete(
+    @Param('tenantId') tenantId: string,
+    @Param('clientDraftId') clientDraftId: string,
+  ) {
+    const draft = await this.draftService.softDelete(tenantId, clientDraftId);
+
+    return this.draftToResponse(draft);
+  }
+
+  private draftToResponse(draft: Draft) {
     return {
       id: draft._id?.toString(),
       clientDraftId: draft.clientDraftId,

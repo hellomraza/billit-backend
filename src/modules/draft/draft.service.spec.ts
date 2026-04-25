@@ -36,9 +36,8 @@ class InMemoryDraftModel {
       Object.assign(doc, update.$setOnInsert);
     }
 
-    if (update.$set) {
-      Object.assign(doc, update.$set);
-    }
+    const payload = update.$set ?? update;
+    Object.assign(doc, payload);
 
     return doc;
   }
@@ -238,5 +237,51 @@ describe('DraftService', () => {
     await expect(
       service.findAll(new Types.ObjectId().toString()),
     ).resolves.toEqual([]);
+  });
+
+  it('soft deletes a draft by tenantId and clientDraftId', async () => {
+    const draftModel = new InMemoryDraftModel();
+    const outletService = {} as any;
+    const tenantId = new Types.ObjectId().toString();
+    const outletId = new Types.ObjectId();
+    const clientDraftId = 'draft-to-delete';
+
+    draftModel.seed({
+      _id: new Types.ObjectId(),
+      tenantId: new Types.ObjectId(tenantId),
+      outletId,
+      clientDraftId,
+      tabLabel: 'Bill 1',
+      items: [],
+      customerName: null,
+      customerPhone: null,
+      paymentMethod: DraftPaymentMethod.CASH,
+      isDeleted: false,
+      createdAt: new Date('2026-01-01T08:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T08:00:00.000Z'),
+      syncedAt: new Date('2026-01-01T08:00:00.000Z'),
+    });
+
+    const service = new DraftService(draftModel as any, outletService);
+
+    const result = await service.softDelete(tenantId, clientDraftId);
+
+    expect(result).toBeDefined();
+    expect(result.isDeleted).toBe(true);
+    expect(draftModel.getAllDocuments()).toHaveLength(1);
+    expect(draftModel.getAllDocuments()[0].isDeleted).toBe(true);
+  });
+
+  it('throws not found when soft deleting a missing draft', async () => {
+    const draftModel = new InMemoryDraftModel();
+    const outletService = {} as any;
+    const service = new DraftService(draftModel as any, outletService);
+
+    await expect(
+      service.softDelete(
+        new Types.ObjectId().toString(),
+        'missing-client-draft-id',
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

@@ -73,4 +73,26 @@ export class DraftService {
       .sort({ updatedAt: 1 })
       .exec();
   }
+
+  async softDelete(tenantId: string, clientDraftId: string) {
+    const draft = await this.draftModel.findOneAndUpdate(
+      {
+        tenantId: new Types.ObjectId(tenantId),
+        clientDraftId,
+      },
+      {
+        isDeleted: true,
+      },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    if (!draft) {
+      throw new NotFoundException('Draft not found');
+    }
+
+    return draft;
+  }
 }
