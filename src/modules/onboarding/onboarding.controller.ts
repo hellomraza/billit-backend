@@ -2,18 +2,20 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Patch,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { TenantValidationGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   OnboardingCompleteDto,
@@ -25,8 +27,8 @@ import {
 import { OnboardingService } from './onboarding.service';
 
 @ApiTags('Onboarding')
-@Controller('onboarding')
-@UseGuards(JwtAuthGuard)
+@Controller('tenants/:tenantId/onboarding')
+@UseGuards(JwtAuthGuard, TenantValidationGuard)
 @ApiBearerAuth('access-token')
 export class OnboardingController {
   constructor(private onboardingService: OnboardingService) {}
@@ -48,8 +50,12 @@ export class OnboardingController {
     status: 401,
     description: 'Unauthorized',
   })
-  async getStatus(@Req() request: any) {
-    const tenantId = request.user?.sub;
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  async getStatus(@Param('tenantId') tenantId: string) {
     return await this.onboardingService.getStatus(tenantId);
   }
 
@@ -79,11 +85,15 @@ export class OnboardingController {
     status: 409,
     description: 'Business abbreviation is locked',
   })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
   async updateBusiness(
-    @Req() request: any,
+    @Param('tenantId') tenantId: string,
     @Body() updateDto: UpdateBusinessDto,
   ) {
-    const tenantId = request.user?.sub;
     return await this.onboardingService.updateBusiness(tenantId, updateDto);
   }
 
@@ -108,11 +118,15 @@ export class OnboardingController {
     status: 401,
     description: 'Unauthorized',
   })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
   async updateOutlet(
-    @Req() request: any,
+    @Param('tenantId') tenantId: string,
     @Body() updateDto: UpdateOnboardingOutletDto,
   ) {
-    const tenantId = request.user?.sub;
     return await this.onboardingService.updateOutlet(tenantId, updateDto);
   }
 
@@ -137,8 +151,15 @@ export class OnboardingController {
     status: 401,
     description: 'Unauthorized',
   })
-  async updateGst(@Req() request: any, @Body() updateDto: UpdateGstDto) {
-    const tenantId = request.user?.sub;
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  async updateGst(
+    @Param('tenantId') tenantId: string,
+    @Body() updateDto: UpdateGstDto,
+  ) {
     return await this.onboardingService.updateGst(tenantId, updateDto);
   }
 
@@ -164,8 +185,12 @@ export class OnboardingController {
     status: 401,
     description: 'Unauthorized',
   })
-  async complete(@Req() request: any) {
-    const tenantId = request.user?.sub;
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  async complete(@Param('tenantId') tenantId: string) {
     return await this.onboardingService.completeOnboarding(tenantId);
   }
 }
