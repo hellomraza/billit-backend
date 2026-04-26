@@ -31,13 +31,12 @@ export class OnboardingService {
     }
 
     const outlet = await this.outletModel.findOne({
-      tenantId,
+      tenantId: new Types.ObjectId(tenantId),
     });
 
     return {
       businessStep: !!(tenant.businessName && tenant.businessAbbr),
       outletStep: !!outlet,
-      gstStep: tenant.gstEnabled,
       completedAt: tenant.onboardingComplete ? new Date() : null,
     };
   }
@@ -78,7 +77,7 @@ export class OnboardingService {
 
     // Check if outlet already exists
     let outlet = await this.outletModel.findOne({
-      tenantId,
+      tenantId: new Types.ObjectId(tenantId),
     });
 
     if (!outlet) {
@@ -146,7 +145,7 @@ export class OnboardingService {
 
     // Verify all required steps are done
     const outlet = await this.outletModel.findOne({
-      tenantId,
+      tenantId: new Types.ObjectId(tenantId),
     });
 
     if (!tenant.businessName || !tenant.businessAbbr) {
