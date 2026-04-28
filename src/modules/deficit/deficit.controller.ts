@@ -25,6 +25,7 @@ import { AdjustmentReason, ResolutionMethod } from './deficit.schema';
 import { DeficitService } from './deficit.service';
 import {
   DeficitListResponseDto,
+  DeficitGroupedProductSummaryDto,
   ResolveAdjustmentDto,
   ResolveStockAdditionDto,
 } from './dto/deficit-resolution.dto';
@@ -183,8 +184,7 @@ export class DeficitController {
   }
 
   @ApiOperation({
-    summary:
-      'Get all pending deficits grouped by product with outlet breakdown',
+    summary: 'Get all pending deficits grouped by product with record details',
   })
   @ApiParam({
     name: 'tenantId',
@@ -193,21 +193,50 @@ export class DeficitController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Deficits grouped by product',
-    schema: {
-      properties: {
-        data: {
-          type: 'array',
-          items: { $ref: '#/components/schemas/DeficitGroupedByProductDto' },
-        },
-      },
-    },
+    description:
+      'Pending deficits grouped by product with threshold warning state and expandable record details',
+    type: DeficitGroupedProductSummaryDto,
+    isArray: true,
   })
   @Get('grouped-by-product')
   async getGroupedByProduct(@Param('tenantId') tenantId: string) {
-    const data =
-      await this.deficitService.findPendingGroupedByProduct(tenantId);
-    return { data };
+    const { data } = await this.deficitService.findAllGroupedByProduct(
+      tenantId,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    );
+
+    const groupedData = data.map((item) => {
+      const pendingRecords = item.records.map((record) => ({
+        deficitId: record.deficitId,
+        outletName: record.outletName,
+        quantity: record.quantity,
+        linkedInvoiceId: record.linkedInvoiceId,
+        createdAt: record.createdAt.toISOString(),
+      }));
+
+      return {
+        productId: item.productId,
+        productName: item.productName,
+        totalPendingDeficit: item.totalPendingDeficit,
+        pendingRecordCount: item.pendingRecordCount,
+        latestDeficitDate: item.latestDeficitDate.toISOString(),
+        deficitThreshold: item.deficitThreshold,
+        warningState: {
+          isAtThreshold:
+            item.totalPendingDeficit === item.deficitThreshold &&
+            item.totalPendingDeficit > 0,
+          isAboveThreshold: item.totalPendingDeficit > item.deficitThreshold,
+          percentageOfThreshold: Math.round(
+            (item.totalPendingDeficit / Math.max(item.deficitThreshold, 1)) *
+              100,
+          ),
+        },
+        pendingRecords,
+        records: pendingRecords,
+      };
+    });
+    return { data: groupedData };
   }
 
   @ApiOperation({
