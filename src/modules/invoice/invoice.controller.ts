@@ -151,7 +151,9 @@ export class InvoiceController {
         // Return 409 with insufficient items details
         throw new ConflictException({
           error: 'STOCK_INSUFFICIENT',
-          insufficientItems: validationResult.insufficiencies,
+          details: {
+            insufficientItems: validationResult.insufficiencies,
+          },
           message:
             'Stock insufficient for some items. Review and retry with override flag if allowed.',
         });

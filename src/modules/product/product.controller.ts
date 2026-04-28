@@ -127,7 +127,6 @@ export class ProductController {
       parseInt(limit),
       includeDeleted === 'true',
     );
-    console.log('Products retrieved', tenantId, outletId);
 
     return {
       data: data.map((p) => this.productToResponseWithStock(p)),
