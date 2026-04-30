@@ -51,6 +51,13 @@ export class SettingsResponseDto {
     example: '2026-04-13T10:30:00.000Z',
   })
   createdAt: Date;
+
+  @ApiProperty({
+    description: 'Count of saved (non-deleted) drafts',
+    example: 3,
+    type: 'number',
+  })
+  savedDraftCount: number;
 }
 
 export class UpdateBusinessSettingsDto {

@@ -6,6 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
 import { Model } from 'mongoose';
+import { Draft } from '../draft/draft.schema';
 import { Tenant } from '../tenant/tenant.schema';
 import {
   ChangePasswordSettingsDto,
@@ -17,6 +18,7 @@ import {
 export class SettingsService {
   constructor(
     @InjectModel(Tenant.name) private tenantModel: Model<Tenant>,
+    @InjectModel(Draft.name) private draftModel: Model<Draft>,
     @InjectModel('RefreshSession') private refreshSessionModel: any,
   ) {}
 
@@ -29,6 +31,12 @@ export class SettingsService {
       throw new NotFoundException('Tenant not found');
     }
 
+    // Count non-deleted drafts for this tenant
+    const savedDraftCount = await this.draftModel.countDocuments({
+      tenantId: tenant._id,
+      isDeleted: false,
+    });
+
     return {
       email: tenant.email,
       businessName: tenant.businessName,
@@ -37,6 +45,7 @@ export class SettingsService {
       gstNumber: tenant.gstNumber,
       gstEnabled: tenant.gstEnabled,
       createdAt: tenant.createdAt,
+      savedDraftCount,
     };
   }
 
