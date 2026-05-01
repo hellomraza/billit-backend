@@ -17,7 +17,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { CsvFileUpload } from 'src/decorator/file-upload.decorator';
+import { CsvFileUpload } from '../../decorator/file-upload.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CsvTemplateDto, ImportReportDto } from './dto/import.dto';
 import { ImportService } from './import.service';
