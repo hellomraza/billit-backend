@@ -12,7 +12,7 @@ import { StockAuditLogService } from '../stock-audit/stock-audit.service';
 import { StockService } from '../stock/stock.service';
 import { TenantService } from '../tenant/tenant.service';
 import { CreateInvoiceDto } from './dto/invoice-create.dto';
-import { Invoice, InvoiceItem } from './invoice.schema';
+import { Invoice, InvoiceItem, PaymentMethod } from './invoice.schema';
 
 interface InsufficientStockDetail {
   productId: string;
@@ -336,7 +336,7 @@ export class InvoiceService {
       dateFrom?: Date;
       dateTo?: Date;
       invoiceNumber?: string;
-      paymentMethod?: string;
+      paymentMethod?: PaymentMethod;
       gstEnabled?: boolean;
       outletId?: string;
       productId?: string;
@@ -419,7 +419,7 @@ export class InvoiceService {
 
   async findByPaymentMethod(
     tenantId: string,
-    paymentMethod: string,
+    paymentMethod: PaymentMethod,
   ): Promise<Invoice[]> {
     return this.invoiceModel.find({
       tenantId: new Types.ObjectId(tenantId),

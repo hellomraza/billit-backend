@@ -33,6 +33,7 @@ import {
   StockInsufficientResponseDto,
 } from './dto/invoice-create.dto';
 import { InvoiceService } from './invoice.service';
+import { PaymentMethod } from './invoice.schema';
 
 @UseGuards(JwtAuthGuard, TenantValidationGuard)
 @ApiBearerAuth('access-token')
@@ -301,7 +302,7 @@ export class InvoiceController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('invoiceNumber') invoiceNumber?: string,
-    @Query('paymentMethod') paymentMethod?: string,
+    @Query('paymentMethod') paymentMethod?: PaymentMethod,
     @Query('gstEnabled') gstEnabled?: string,
     @Query('outletId') outletId?: string,
     @Query('productId') productId?: string,
