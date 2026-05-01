@@ -103,7 +103,7 @@ export class ImportController {
         .addMaxSizeValidator({ maxSize: MAX_FILE_SIZE })
         .build({ errorHttpStatusCode: HttpStatus.BAD_REQUEST }),
     )
-    file: Express.Multer.File,
+    file: any,
     @Req() request: any,
   ) {
     // Validate file exists
