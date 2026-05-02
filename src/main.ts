@@ -7,6 +7,7 @@ import { AppModule } from 'src/app.module';
 let server;
 
 async function bootstrap() {
+  console.log('Bootstrapping NestJS application...');
   const app = await NestFactory.create(AppModule);
 
   app.enableCors();
@@ -40,17 +41,24 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
 
   SwaggerModule.setup('api', app, document);
+  console.log('NestJS application initialized, starting serverless handler...');
 
   await app.init();
+  console.log(
+    'NestJS application fully initialized, creating serverless handler...',
+  );
 
   const expressApp = app.getHttpAdapter().getInstance();
+  console.log('Serverless handler created, ready to handle requests');
   return serverless(expressApp);
 }
 
 export default async function handler(req, res) {
   console.log('Received request:', req.method, req.path);
   if (!server) {
+    console.log('No server instance found, bootstrapping application...');
     server = await bootstrap();
   }
+  console.log('Handling request with serverless handler');
   return server(req, res);
 }
