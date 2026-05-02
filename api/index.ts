@@ -2,7 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import serverless from 'serverless-http';
-import { AppModule } from 'src/app.module';
+import { AppModule } from '../src/app.module';
 
 let server;
 
