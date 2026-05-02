@@ -6,19 +6,19 @@ export class PasswordResetToken extends Document {
   @Prop({ required: true, type: Types.ObjectId })
   tenantId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   tokenHash: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Date })
   expiresAt: Date;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   used: boolean;
 
-  @Prop()
+  @Prop({ type: Date })
   createdAt: Date;
 
-  @Prop()
+  @Prop({ type: Date })
   updatedAt: Date;
 }
 

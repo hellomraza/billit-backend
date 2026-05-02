@@ -6,16 +6,16 @@ export class DailyInvoiceCounter extends Document {
   @Prop({ required: true, type: Types.ObjectId })
   outletId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   date: string; // YYYY-MM-DD format
 
-  @Prop({ required: true, default: 0 })
+  @Prop({ required: true, default: 0, type: Number })
   lastCounter: number;
 
-  @Prop({ default: () => new Date() })
+  @Prop({ default: () => new Date(), type: Date })
   createdAt: Date;
 
-  @Prop({ default: () => new Date() })
+  @Prop({ default: () => new Date(), type: Date })
   updatedAt: Date;
 }
 

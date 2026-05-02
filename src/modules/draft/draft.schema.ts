@@ -45,16 +45,16 @@ export class Draft {
   @Prop({ type: String, enum: DraftPaymentMethod, default: null })
   paymentMethod?: DraftPaymentMethod | null;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   isDeleted!: boolean;
 
   @Prop({ type: Date, default: null })
   syncedAt?: Date | null;
 
-  @Prop()
+  @Prop({ type: Date, default: null })
   createdAt!: Date;
 
-  @Prop()
+  @Prop({ type: Date, default: null })
   updatedAt!: Date;
 }
 

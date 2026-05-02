@@ -28,28 +28,33 @@ export class DeficitRecord extends Document {
   @Prop({ required: true, type: Types.ObjectId })
   outletId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Number })
   quantity: number;
 
   @Prop({ type: Types.ObjectId })
   linkedInvoiceId: Types.ObjectId;
 
-  @Prop({ required: true, enum: DeficitStatus, default: DeficitStatus.PENDING })
+  @Prop({
+    required: true,
+    enum: DeficitStatus,
+    default: DeficitStatus.PENDING,
+    type: String,
+  })
   status: DeficitStatus;
 
-  @Prop({ enum: ResolutionMethod })
+  @Prop({ enum: ResolutionMethod, type: String })
   resolutionMethod: ResolutionMethod;
 
-  @Prop({ enum: AdjustmentReason })
+  @Prop({ enum: AdjustmentReason, type: String })
   adjustmentReason: AdjustmentReason;
 
-  @Prop()
+  @Prop({ type: Date })
   resolvedAt: Date;
 
-  @Prop()
+  @Prop({ type: Date })
   createdAt: Date;
 
-  @Prop()
+  @Prop({ type: Date })
   updatedAt: Date;
 }
 

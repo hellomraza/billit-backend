@@ -10,25 +10,25 @@ export class Product {
   @Prop({ required: true, type: Types.ObjectId })
   tenantId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   name: string;
 
   @Prop({ required: true, type: 'Decimal128' })
   basePrice: any;
 
-  @Prop({ required: true, enum: [0, 5, 12, 18, 28] })
+  @Prop({ required: true, enum: [0, 5, 12, 18, 28], type: Number })
   gstRate: number;
 
-  @Prop({ required: true, min: 1 })
+  @Prop({ required: true, min: 1, type: Number })
   deficitThreshold: number;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   isDeleted: boolean;
 
-  @Prop()
+  @Prop({ type: Date })
   createdAt: Date;
 
-  @Prop()
+  @Prop({ type: Date })
   updatedAt: Date;
 }
 

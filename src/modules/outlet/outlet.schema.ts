@@ -6,34 +6,34 @@ export class Outlet extends Document {
   @Prop({ required: true, type: Types.ObjectId })
   tenantId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   outletName: string;
 
-  @Prop({ required: true, minlength: 3, maxlength: 6 })
+  @Prop({ required: true, minlength: 3, maxlength: 6, type: String })
   outletAbbr: string;
 
-  @Prop()
+  @Prop({ type: String })
   address?: string;
 
-  @Prop()
+  @Prop({ type: String })
   city?: string;
 
-  @Prop()
+  @Prop({ type: String })
   state?: string;
 
-  @Prop()
+  @Prop({ type: String })
   pincode?: string;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   isDefault: boolean;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   abbrLocked: boolean;
 
-  @Prop()
+  @Prop({ type: Date })
   createdAt: Date;
 
-  @Prop()
+  @Prop({ type: Date })
   updatedAt: Date;
 }
 

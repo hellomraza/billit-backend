@@ -17,22 +17,22 @@ export class StockAuditLog extends Document {
   @Prop({ required: true, type: Types.ObjectId })
   outletId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Number })
   previousQuantity: number;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Number })
   newQuantity: number;
 
-  @Prop({ required: true, enum: ChangeType })
+  @Prop({ required: true, enum: ChangeType, type: String })
   changeType: ChangeType;
 
   @Prop({ type: Types.ObjectId })
   referenceId: Types.ObjectId;
 
-  @Prop({ required: true, default: () => new Date() })
+  @Prop({ required: true, default: () => new Date(), type: Date })
   changedAt: Date;
 
-  @Prop({ default: () => new Date() })
+  @Prop({ default: () => new Date(), type: Date })
   createdAt: Date;
 }
 

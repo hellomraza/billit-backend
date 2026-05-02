@@ -3,28 +3,28 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ collection: 'users' })
 export class User extends Document {
-  @Prop({ required: true, unique: true, index: true })
+  @Prop({ required: true, unique: true, index: true, type: String })
   email: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   passwordHash: string;
 
   @Prop({ required: true, type: Types.ObjectId, index: true })
   tenantId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   ownerName: string;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   isEmailVerified: boolean;
 
-  @Prop()
+  @Prop({ type: Date })
   emailVerifiedAt?: Date;
 
-  @Prop({ default: () => new Date() })
+  @Prop({ default: () => new Date(), type: Date })
   createdAt: Date;
 
-  @Prop({ default: () => new Date() })
+  @Prop({ default: () => new Date(), type: Date })
   updatedAt: Date;
 }
 

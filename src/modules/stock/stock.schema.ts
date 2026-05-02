@@ -12,10 +12,10 @@ export class Stock extends Document {
   @Prop({ required: true, type: Types.ObjectId })
   outletId: Types.ObjectId;
 
-  @Prop({ required: true, default: 0 })
+  @Prop({ required: true, default: 0, type: Number })
   quantity: number;
 
-  @Prop()
+  @Prop({ type: Date })
   updatedAt: Date;
 }
 

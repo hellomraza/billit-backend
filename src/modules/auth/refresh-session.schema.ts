@@ -6,22 +6,22 @@ export class RefreshSession extends Document {
   @Prop({ required: true, type: Types.ObjectId, index: true })
   tenantId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   tokenHash: string; // Hashed refresh token
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Date })
   expiresAt: Date;
 
-  @Prop()
+  @Prop({ type: Date })
   revokedAt?: Date;
 
-  @Prop()
+  @Prop({ type: String })
   userAgent?: string;
 
-  @Prop()
+  @Prop({ type: String })
   ipAddress?: string;
 
-  @Prop({ default: () => new Date() })
+  @Prop({ default: () => new Date(), type: Date })
   createdAt: Date;
 }
 

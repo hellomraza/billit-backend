@@ -32,10 +32,10 @@ export class Invoice {
   @Prop({ required: true, type: Types.ObjectId })
   outletId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String, unique: true })
   invoiceNumber: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, type: String })
   clientGeneratedId: string;
 
   @Prop({ required: true, type: [Object] })
@@ -50,45 +50,45 @@ export class Invoice {
   @Prop({ required: true, type: 'Decimal128' })
   grandTotal: any;
 
-  @Prop({ required: true, enum: PaymentMethod })
+  @Prop({ required: true, enum: PaymentMethod, type: String })
   paymentMethod: PaymentMethod;
 
-  @Prop()
+  @Prop({ type: String })
   customerName: string;
 
-  @Prop()
+  @Prop({ type: String })
   customerPhone: string;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   gstEnabled: boolean;
 
-  @Prop()
+  @Prop({ type: String })
   tenantGstNumber: string;
 
   // Snapshot fields for backward compatibility and audit trail
-  @Prop()
+  @Prop({ type: String })
   businessName: string;
 
-  @Prop()
+  @Prop({ type: String })
   businessAbbr: string;
 
-  @Prop()
+  @Prop({ type: String })
   outletName: string;
 
-  @Prop()
+  @Prop({ type: String })
   outletAbbr: string;
 
   // Track if abbreviations were locked on this invoice (first invoice)
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   abbreviationsLocked: boolean;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   isDeleted: boolean;
 
-  @Prop()
+  @Prop({ type: Date })
   createdAt: Date;
 
-  @Prop()
+  @Prop({ type: Date })
   updatedAt: Date;
 }
 

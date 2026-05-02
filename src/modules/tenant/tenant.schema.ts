@@ -3,34 +3,34 @@ import { Document } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class Tenant extends Document {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, lowercase: true, type: String })
   email: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: String })
   passwordHash: string;
 
-  @Prop()
+  @Prop({ type: String })
   businessName: string;
 
-  @Prop({ minlength: 3, maxlength: 6, uppercase: true })
+  @Prop({ minlength: 3, maxlength: 6, uppercase: true, type: String })
   businessAbbr: string;
 
-  @Prop()
+  @Prop({ type: String })
   gstNumber: string;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   gstEnabled: boolean;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   abbrLocked: boolean;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   onboardingComplete: boolean;
 
-  @Prop()
+  @Prop({ type: Date })
   createdAt: Date;
 
-  @Prop()
+  @Prop({ type: Date })
   updatedAt: Date;
 }
 

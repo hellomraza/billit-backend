@@ -9,16 +9,16 @@ export class RefreshSession extends Document {
   @Prop({ required: true, type: Types.ObjectId })
   tenantId: Types.ObjectId;
 
-  @Prop({ required: true, index: true })
+  @Prop({ required: true, index: true , type: String })
   refreshTokenHash: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Date })
   expiresAt: Date;
 
-  @Prop({ default: false })
+  @Prop({ default: false, type: Boolean })
   isRevoked: boolean;
 
-  @Prop({ default: () => new Date() })
+  @Prop({ default: () => new Date(), type: Date })
   createdAt: Date;
 }
 
