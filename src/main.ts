@@ -1,64 +1,86 @@
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import serverless from 'serverless-http';
-import { AppModule } from 'src/app.module';
-
-let server;
+import cookieParser from 'cookie-parser';
+import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { HttpErrorFilter } from './common/filters/http-error.filter';
+import { GlobalValidationPipe } from './common/pipes/global-validation.pipe';
 
 async function bootstrap() {
-  console.log('Bootstrapping NestJS application...');
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors();
+  // Enable CORS for frontend communication
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
+  // Parse cookies from requests
+  app.use(cookieParser());
 
+  // Global validation pipe with custom error formatting
+  app.useGlobalPipes(new GlobalValidationPipe());
+
+  // Global exception filters for consistent error responses (order matters: HTTP first, then general)
+  app.useGlobalFilters(new HttpErrorFilter(), new GlobalExceptionFilter());
+
+  // Swagger Setup
   const config = new DocumentBuilder()
-    .setTitle('Cats example')
-    .setDescription('The cats API description')
-    .setVersion('1.0')
+    .setTitle('Billit Backend API')
+    .setDescription(
+      'Multi-tenant POS & Inventory Management System API Documentation',
+    )
+    .setVersion('1.0.0')
     .addBearerAuth(
       {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: 'Paste JWT access token',
+        name: 'access-token',
+        description: 'Enter your JWT access token',
       },
       'access-token',
     )
+    .addTag('Health', 'Service health and readiness checks')
+    .addTag('Auth', 'Authentication and session management')
+    .addTag('Onboarding', 'Tenant onboarding flow')
+    .addTag('Settings', 'Tenant settings and profile')
+    .addTag('Tenants', 'Tenant account management')
+    .addTag('Outlets', 'Store outlet management')
+    .addTag('Products', 'Product catalog management')
+    .addTag('Stock', 'Inventory management')
+    .addTag('Invoices', 'Sales invoice management')
+    .addTag('Deficits', 'Stock shortage tracking')
+    .addTag('Stock Audit', 'Stock change history')
+    .addTag('Password Reset', 'Password reset functionality')
+    .addTag('Import', 'CSV import functionality')
+    .setContact(
+      'Support',
+      'https://billit.example.com',
+      'support@billit.example.com',
+    )
+    .setLicense('Proprietary', 'All rights reserved')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayOperationId: true,
+      displayRequestDuration: true,
+    },
+    customCss: '.swagger-ui { font-family: sans-serif; }',
+    customJs: [],
+  });
 
-  SwaggerModule.setup('api', app, document);
-  console.log('NestJS application initialized, starting serverless handler...');
-
-  await app.init();
+  await app.listen(process.env.PORT ?? 3000);
   console.log(
-    'NestJS application fully initialized, creating serverless handler...',
+    `🚀 Server running on http://localhost:${process.env.PORT ?? 3000}`,
   );
-
-  const expressApp = app.getHttpAdapter().getInstance();
-  console.log('Serverless handler created, ready to handle requests');
-  return serverless(expressApp);
+  console.log(
+    `📚 Swagger docs available at http://localhost:${process.env.PORT ?? 3000}/api`,
+  );
 }
-
-export default async function handler(req, res) {
-  console.log('Received request:', req.method, req.path);
-  if (!server) {
-    console.log('No server instance found, bootstrapping application...');
-    server = await bootstrap();
-  }
-  console.log('Handling request with serverless handler');
-  return server(req, res);
-}
+bootstrap();
