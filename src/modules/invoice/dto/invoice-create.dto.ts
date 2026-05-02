@@ -19,6 +19,7 @@ import { PaymentMethod } from '../invoice.schema';
 
 export class InvoiceItemDto {
   @ApiProperty({
+    type: String,
     description: 'Product ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
@@ -27,6 +28,7 @@ export class InvoiceItemDto {
   productId: Types.ObjectId;
 
   @ApiProperty({
+    type: String,
     description: 'Product name',
     example: 'Laptop',
   })
@@ -35,9 +37,9 @@ export class InvoiceItemDto {
   productName: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Item quantity (must be >= 1)',
     example: 2,
-    type: 'number',
     minimum: 1,
   })
   @IsNumber()
@@ -47,9 +49,9 @@ export class InvoiceItemDto {
   quantity: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Unit price in INR',
     example: 50000,
-    type: 'number',
   })
   @IsNumber()
   @IsNotEmpty()
@@ -57,9 +59,9 @@ export class InvoiceItemDto {
   unitPrice: number;
 
   @ApiProperty({
+    type: Number,
     description: 'GST rate percentage (0, 5, 12, 18, or 28)',
     example: 18,
-    type: 'number',
     enum: [0, 5, 12, 18, 28],
   })
   @IsIn([0, 5, 12, 18, 28])
@@ -67,6 +69,7 @@ export class InvoiceItemDto {
   gstRate: number;
 
   @ApiProperty({
+    type: Boolean,
     description:
       'Override stock insufficiency for this item (set in second request)',
     example: false,
@@ -79,6 +82,7 @@ export class InvoiceItemDto {
 
 export class CreateInvoiceDto {
   @ApiProperty({
+    type: String,
     description:
       'Client-generated unique invoice identifier (UUID for idempotency)',
     example: '550e8400-e29b-41d4-a716-446655440000',
@@ -88,6 +92,7 @@ export class CreateInvoiceDto {
   clientGeneratedId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Client-generated draft identifier (UUID)',
     example: '550e8400-e29b-41d4-a716-446655440001',
     required: false,
@@ -97,6 +102,7 @@ export class CreateInvoiceDto {
   clientDraftId?: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
@@ -105,19 +111,8 @@ export class CreateInvoiceDto {
   outletId: Types.ObjectId;
 
   @ApiProperty({
+    type: [InvoiceItemDto],
     description: 'Array of invoice line items (at least 1 required)',
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        productId: { type: 'string', example: '507f1f77bcf86cd799439011' },
-        productName: { type: 'string', example: 'Laptop' },
-        quantity: { type: 'number', example: 2, minimum: 1 },
-        unitPrice: { type: 'number', example: 50000 },
-        gstRate: { type: 'number', example: 18, enum: [0, 5, 12, 18, 28] },
-        override: { type: 'boolean', example: false },
-      },
-    },
     minItems: 1,
   })
   @IsArray()
@@ -126,6 +121,7 @@ export class CreateInvoiceDto {
   items: InvoiceItemDto[];
 
   @ApiProperty({
+    type: String,
     description: 'Payment method',
     example: 'CASH',
     enum: ['CASH', 'CARD', 'UPI', 'CHEQUE', 'BANK_TRANSFER'],
@@ -135,6 +131,7 @@ export class CreateInvoiceDto {
   paymentMethod: PaymentMethod;
 
   @ApiProperty({
+    type: String,
     description: 'Customer name',
     example: 'John Doe',
     required: false,
@@ -144,6 +141,7 @@ export class CreateInvoiceDto {
   customerName?: string;
 
   @ApiProperty({
+    type: String,
     description: 'Customer phone number',
     example: '+91 9876543210',
     required: false,
@@ -153,6 +151,7 @@ export class CreateInvoiceDto {
   customerPhone?: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Override tenant GST setting for this invoice',
     example: true,
     required: false,
@@ -166,42 +165,49 @@ export class CreateInvoiceDto {
 
 export class InvoiceItemResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Product ID',
     example: '507f1f77bcf86cd799439011',
   })
   productId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Product name snapshot',
     example: 'Laptop',
   })
   productName: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Quantity sold',
     example: 2,
   })
   quantity: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Unit price snapshot at time of sale',
     example: 50000,
   })
   unitPrice: number;
 
   @ApiProperty({
+    type: Number,
     description: 'GST rate snapshot',
     example: 18,
   })
   gstRate: number;
 
   @ApiProperty({
+    type: Number,
     description: 'GST amount calculated',
     example: 9000,
   })
   gstAmount: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Line total (qty * price + gst)',
     example: 59000,
   })
@@ -210,18 +216,21 @@ export class InvoiceItemResponseDto {
 
 export class CreateInvoiceResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Invoice ID',
     example: '507f1f77bcf86cd799439011',
   })
   invoiceId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Generated invoice number',
     example: 'ABC-OUT-20260414-00001',
   })
   invoiceNumber: string;
 
   @ApiProperty({
+    type: String,
     description: 'Creation timestamp',
     example: '2026-04-14T10:30:00.000Z',
   })
@@ -234,38 +243,42 @@ export class CreateInvoiceResponseDto {
   items: InvoiceItemResponseDto[];
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether GST was enabled for this invoice',
-    type: 'boolean',
   })
   gstEnabled: boolean;
 
   @ApiProperty({
+    type: Number,
     description: 'Subtotal (before GST)',
     example: 100000,
   })
   subtotal: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Total GST amount',
     example: 18000,
   })
   gstTotal: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Grand total (subtotal + gst)',
     example: 118000,
   })
   grandTotal: number;
 
   @ApiProperty({
+    type: String,
     description: 'Payment method used',
     example: 'CASH',
   })
   paymentMethod: string;
 
   @ApiProperty({
-    description: 'Customer details if provided',
     type: 'object',
+    description: 'Customer details if provided',
     properties: {
       name: { type: 'string' },
       phone: { type: 'string' },
@@ -277,8 +290,8 @@ export class CreateInvoiceResponseDto {
   };
 
   @ApiProperty({
-    description: 'GST details if enabled',
     type: 'object',
+    description: 'GST details if enabled',
     properties: {
       tenantGSTNumber: { type: 'string' },
       gstEnabled: { type: 'boolean' },
@@ -290,6 +303,7 @@ export class CreateInvoiceResponseDto {
   };
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether abbreviations were locked (first invoice)',
     example: false,
   })
@@ -298,48 +312,56 @@ export class CreateInvoiceResponseDto {
 
 export class InsufficientStockItemDto {
   @ApiProperty({
+    type: String,
     description: 'Product ID',
     example: '507f1f77bcf86cd799439011',
   })
   productId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Product name',
     example: 'Laptop',
   })
   productName: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Requested quantity',
     example: 10,
   })
   requestedQuantity: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Current stock level',
     example: 5,
   })
   currentStock: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Deficit threshold for product',
     example: 10,
   })
   deficitThreshold: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Currently pending deficit quantity',
     example: 2,
   })
   currentDeficit: number;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether override is allowed',
     example: false,
   })
   canOverride: boolean;
 
   @ApiProperty({
+    type: String,
     description: 'Reason why override cannot be applied',
     example: 'Deficit threshold already exceeded',
     required: false,
@@ -349,6 +371,7 @@ export class InsufficientStockItemDto {
 
 export class StockInsufficientResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Error code',
     example: 'STOCK_INSUFFICIENT',
   })
@@ -361,6 +384,7 @@ export class StockInsufficientResponseDto {
   insufficientItems: InsufficientStockItemDto[];
 
   @ApiProperty({
+    type: String,
     description: 'Error message',
     example:
       'Stock insufficient for some items. Review and retry with override flag.',
@@ -370,23 +394,15 @@ export class StockInsufficientResponseDto {
 
 export class OverrideBlockedResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Error code',
     example: 'OVERRIDE_BLOCKED',
   })
   error: string;
 
   @ApiProperty({
+    type: [Object],
     description: 'Items blocked from override',
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        productId: { type: 'string' },
-        productName: { type: 'string' },
-        deficitThreshold: { type: 'number' },
-        currentDeficit: { type: 'number' },
-      },
-    },
   })
   blockedItems: Array<{
     productId: string;
@@ -396,6 +412,7 @@ export class OverrideBlockedResponseDto {
   }>;
 
   @ApiProperty({
+    type: String,
     description: 'Error message',
     example: 'Override blocked because deficit threshold exceeded.',
   })
@@ -404,66 +421,77 @@ export class OverrideBlockedResponseDto {
 
 export class InvoiceListResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Invoice number',
     example: 'ABC-OUT-20260414-00001',
   })
   invoiceNumber: string;
 
   @ApiProperty({
+    type: String,
     description: 'Invoice ID',
     example: '507f1f77bcf86cd799439011',
   })
   invoiceId: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether GST was enabled for this invoice',
     example: true,
   })
   gstEnabled: boolean;
 
   @ApiProperty({
+    type: String,
     description: 'Creation date',
     example: '2026-04-14T10:30:00.000Z',
   })
   createdAt: string;
 
   @ApiProperty({
+    type: String,
     description: 'Business name snapshot',
     example: 'ABC Retail',
   })
   businessName: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Number of items in invoice',
     example: 3,
   })
   itemCount: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Subtotal before GST',
     example: 100000,
   })
   subtotal: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Total GST',
     example: 18000,
   })
   gstTotal: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Grand total',
     example: 118000,
   })
   grandTotal: number;
 
   @ApiProperty({
+    type: String,
     description: 'Payment method',
     example: 'CASH',
   })
   paymentMethod: string;
 
   @ApiProperty({
+    type: String,
     description: 'Customer name if provided',
     example: 'John Doe',
     required: false,
@@ -471,6 +499,7 @@ export class InvoiceListResponseDto {
   customerName?: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Number of items that were overridden',
     example: 2,
   })
@@ -479,62 +508,71 @@ export class InvoiceListResponseDto {
 
 export class InvoiceDetailResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Invoice number',
     example: 'ABC-OUT-20260414-00001',
   })
   invoiceNumber: string;
 
   @ApiProperty({
+    type: String,
     description: 'Invoice ID',
     example: '507f1f77bcf86cd799439011',
   })
   invoiceId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Creation timestamp',
     example: '2026-04-14T10:30:00.000Z',
   })
   createdAt: string;
 
   @ApiProperty({
+    type: String,
     description: 'Business name snapshot',
     example: 'ABC Retail',
   })
   businessName: string;
 
   @ApiProperty({
+    type: String,
     description: 'Business abbreviation snapshot',
     example: 'ABC',
   })
   businessAbbr: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet name snapshot',
     example: 'Main Store',
   })
   outletName: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet abbreviation snapshot',
     example: 'OUT',
   })
   outletAbbr: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether GST was enabled',
     example: true,
   })
   gstEnabled: boolean;
 
   @ApiProperty({
+    type: String,
     description: 'Tenant GST number snapshot',
     example: '29AAHFU5055K1Z5',
   })
   tenantGSTNumber?: string;
 
   @ApiProperty({
-    description: 'Customer details',
     type: 'object',
+    description: 'Customer details',
     properties: {
       name: { type: 'string' },
       phone: { type: 'string' },
@@ -546,6 +584,7 @@ export class InvoiceDetailResponseDto {
   };
 
   @ApiProperty({
+    type: String,
     description: 'Payment method',
     example: 'CASH',
   })
@@ -558,18 +597,21 @@ export class InvoiceDetailResponseDto {
   items: InvoiceItemResponseDto[];
 
   @ApiProperty({
+    type: Number,
     description: 'Subtotal',
     example: 100000,
   })
   subtotal: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Total GST',
     example: 18000,
   })
   gstTotal: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Grand total',
     example: 118000,
   })

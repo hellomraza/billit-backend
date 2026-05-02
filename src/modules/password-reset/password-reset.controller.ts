@@ -4,6 +4,7 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Inject,
   Post,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -19,6 +20,7 @@ import { PasswordResetService } from './password-reset.service';
 @Controller('password-reset')
 export class PasswordResetController {
   constructor(
+    @Inject(PasswordResetService)
     private readonly passwordResetService: PasswordResetService,
     @InjectModel(Tenant.name) private tenantModel: Model<Tenant>,
     @InjectModel(RefreshSession.name)

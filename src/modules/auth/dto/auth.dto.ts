@@ -3,6 +3,7 @@ import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class SignupDto {
   @ApiProperty({
+    type: String,
     description: 'Email address for the new tenant',
     example: 'user@example.com',
     format: 'email',
@@ -12,6 +13,7 @@ export class SignupDto {
   email: string;
 
   @ApiProperty({
+    type: String,
     description:
       'Secure password (minimum 8 characters, must contain letter and number)',
     example: 'SecurePass123',
@@ -25,6 +27,7 @@ export class SignupDto {
 
 export class LoginDto {
   @ApiProperty({
+    type: String,
     description: 'Tenant email address',
     example: 'user@example.com',
     format: 'email',
@@ -34,6 +37,7 @@ export class LoginDto {
   email: string;
 
   @ApiProperty({
+    type: String,
     description: 'Tenant password',
     example: 'SecurePass123',
   })
@@ -44,6 +48,7 @@ export class LoginDto {
 
 export class ForgotPasswordDto {
   @ApiProperty({
+    type: String,
     description: 'Email address of the tenant account',
     example: 'user@example.com',
     format: 'email',
@@ -55,6 +60,7 @@ export class ForgotPasswordDto {
 
 export class ResetPasswordDto {
   @ApiProperty({
+    type: String,
     description: 'Email address of the tenant account',
     example: 'user@example.com',
     format: 'email',
@@ -64,6 +70,7 @@ export class ResetPasswordDto {
   email: string;
 
   @ApiProperty({
+    type: String,
     description: 'Password reset token received via email',
     example: 'reset_token_value',
   })
@@ -72,6 +79,7 @@ export class ResetPasswordDto {
   token: string;
 
   @ApiProperty({
+    type: String,
     description: 'New password (minimum 8 characters)',
     example: 'NewPassword123',
     minLength: 8,
@@ -84,6 +92,7 @@ export class ResetPasswordDto {
 
 export class ChangePasswordDto {
   @ApiProperty({
+    type: String,
     description: 'Current password for verification',
     example: 'OldPassword123',
   })
@@ -92,6 +101,7 @@ export class ChangePasswordDto {
   currentPassword: string;
 
   @ApiProperty({
+    type: String,
     description: 'New password (minimum 8 characters)',
     example: 'NewPassword123',
     minLength: 8,
@@ -104,6 +114,7 @@ export class ChangePasswordDto {
 
 export class AuthResponseDto {
   @ApiProperty({
+    type: String,
     description: 'JWT access token (7-day expiry)',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
@@ -126,6 +137,7 @@ export class AuthResponseDto {
 
 export class RefreshResponseDto {
   @ApiProperty({
+    type: String,
     description: 'New JWT access token',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })

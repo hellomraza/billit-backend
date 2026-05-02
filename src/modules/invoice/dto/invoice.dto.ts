@@ -15,6 +15,7 @@ import { PaymentMethod } from '../invoice.schema';
 
 export class InvoiceItemDto {
   @ApiProperty({
+    type: String,
     description: 'Product ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
@@ -23,6 +24,7 @@ export class InvoiceItemDto {
   productId: Types.ObjectId;
 
   @ApiProperty({
+    type: String,
     description: 'Product name',
     example: 'Laptop',
   })
@@ -31,9 +33,9 @@ export class InvoiceItemDto {
   productName: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Item quantity',
     example: 2,
-    type: 'number',
   })
   @IsNumber()
   @IsNotEmpty()
@@ -41,9 +43,9 @@ export class InvoiceItemDto {
   quantity: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Unit price in INR',
     example: 50000,
-    type: 'number',
   })
   @IsNumber()
   @IsNotEmpty()
@@ -51,9 +53,9 @@ export class InvoiceItemDto {
   unitPrice: number; // Will be converted to Decimal128
 
   @ApiProperty({
+    type: Number,
     description: 'GST rate percentage',
     example: 18,
-    type: 'number',
   })
   @IsNumber()
   @IsNotEmpty()
@@ -62,6 +64,7 @@ export class InvoiceItemDto {
 
 export class CreateInvoiceDto {
   @ApiProperty({
+    type: String,
     description: 'Outlet ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
@@ -70,6 +73,7 @@ export class CreateInvoiceDto {
   outletId: Types.ObjectId;
 
   @ApiProperty({
+    type: String,
     description: 'Client-generated unique invoice identifier',
     example: 'INV-2026-001',
   })
@@ -78,18 +82,8 @@ export class CreateInvoiceDto {
   clientGeneratedId: string;
 
   @ApiProperty({
+    type: [InvoiceItemDto],
     description: 'Array of invoice line items',
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        productId: { type: 'string', example: '507f1f77bcf86cd799439011' },
-        productName: { type: 'string', example: 'Laptop' },
-        quantity: { type: 'number', example: 2 },
-        unitPrice: { type: 'number', example: 50000 },
-        gstRate: { type: 'number', example: 18 },
-      },
-    },
   })
   @IsArray()
   @ValidateNested({ each: true })
@@ -97,6 +91,7 @@ export class CreateInvoiceDto {
   items: InvoiceItemDto[];
 
   @ApiProperty({
+    type: String,
     description: 'Payment method',
     example: 'CASH',
     enum: ['CASH', 'CARD', 'UPI'],
@@ -106,6 +101,7 @@ export class CreateInvoiceDto {
   paymentMethod: PaymentMethod;
 
   @ApiProperty({
+    type: String,
     description: 'Customer name',
     example: 'John Doe',
     required: false,
@@ -115,6 +111,7 @@ export class CreateInvoiceDto {
   customerName?: string;
 
   @ApiProperty({
+    type: String,
     description: 'Customer phone number',
     example: '+91 9876543210',
     required: false,
@@ -124,6 +121,7 @@ export class CreateInvoiceDto {
   customerPhone?: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether this is a GST invoice',
     example: true,
     required: false,
@@ -133,6 +131,7 @@ export class CreateInvoiceDto {
   isGstInvoice?: boolean;
 
   @ApiProperty({
+    type: String,
     description: 'Tenant GST number (GSTIN)',
     example: '29AAHFU5055K1Z5',
     required: false,
@@ -144,64 +143,69 @@ export class CreateInvoiceDto {
 
 export class InvoiceResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Invoice ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   _id: string;
 
   @ApiProperty({
+    type: String,
     description: 'Tenant ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   tenantId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   outletId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Auto-generated invoice number',
     example: 'INV-20260413-001',
   })
   invoiceNumber: string;
 
   @ApiProperty({
+    type: String,
     description: 'Client-generated unique identifier',
     example: 'INV-2026-001',
   })
   clientGeneratedId: string;
 
   @ApiProperty({
+    type: Array,
     description: 'Invoice line items',
-    type: 'array',
-    items: { type: 'object' },
   })
   items: any[];
 
   @ApiProperty({
+    type: Number,
     description: 'Subtotal before tax in INR',
     example: 100000,
-    type: 'number',
   })
   subtotal: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Total GST amount in INR',
     example: 18000,
-    type: 'number',
   })
   totalGstAmount: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Grand total after tax in INR',
     example: 118000,
-    type: 'number',
   })
   grandTotal: number;
 
   @ApiProperty({
+    type: String,
     description: 'Payment method',
     example: 'CASH',
     enum: ['CASH', 'CARD', 'UPI'],
@@ -209,6 +213,7 @@ export class InvoiceResponseDto {
   paymentMethod: PaymentMethod;
 
   @ApiProperty({
+    type: String,
     description: 'Customer name',
     example: 'John Doe',
     nullable: true,
@@ -216,6 +221,7 @@ export class InvoiceResponseDto {
   customerName?: string;
 
   @ApiProperty({
+    type: String,
     description: 'Customer phone number',
     example: '+91 9876543210',
     nullable: true,
@@ -223,12 +229,14 @@ export class InvoiceResponseDto {
   customerPhone?: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether this is a GST invoice',
     example: true,
   })
   isGstInvoice: boolean;
 
   @ApiProperty({
+    type: String,
     description: 'Tenant GST number (GSTIN)',
     example: '29AAHFU5055K1Z5',
     nullable: true,
@@ -236,12 +244,14 @@ export class InvoiceResponseDto {
   tenantGstNumber?: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Invoice deleted status',
     example: false,
   })
   isDeleted: boolean;
 
   @ApiProperty({
+    type: Date,
     description: 'Creation timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })

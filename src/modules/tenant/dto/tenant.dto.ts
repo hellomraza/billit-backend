@@ -12,6 +12,7 @@ import {
 
 export class CreateTenantDto {
   @ApiProperty({
+    type: String,
     description: 'Tenant email address (unique)',
     example: 'user@example.com',
     format: 'email',
@@ -21,6 +22,7 @@ export class CreateTenantDto {
   email: string;
 
   @ApiProperty({
+    type: String,
     description: 'Secure password (minimum 8 characters)',
     example: 'securePassword123',
     minLength: 8,
@@ -31,6 +33,7 @@ export class CreateTenantDto {
   password: string;
 
   @ApiProperty({
+    type: String,
     description: 'Business name',
     example: 'ABC Retail Store',
   })
@@ -39,6 +42,7 @@ export class CreateTenantDto {
   businessName: string;
 
   @ApiProperty({
+    type: String,
     description:
       'Business abbreviation (3-6 uppercase alphanumeric characters)',
     example: 'ABC123',
@@ -53,6 +57,7 @@ export class CreateTenantDto {
   businessAbbr: string;
 
   @ApiProperty({
+    type: String,
     description: 'GST Identification Number (GSTIN)',
     example: '29AAHFU5055K1Z5',
     required: false,
@@ -63,6 +68,7 @@ export class CreateTenantDto {
   gstNumber?: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether GST is enabled for this tenant',
     example: true,
     required: false,
@@ -75,6 +81,7 @@ export class CreateTenantDto {
 
 export class UpdateTenantDto {
   @ApiProperty({
+    type: String,
     description: 'Business name',
     example: 'ABC Retail Store Updated',
     required: false,
@@ -84,6 +91,7 @@ export class UpdateTenantDto {
   businessName?: string;
 
   @ApiProperty({
+    type: String,
     description: 'GST Identification Number (GSTIN)',
     example: '29AAHFU5055K1Z5',
     required: false,
@@ -94,6 +102,7 @@ export class UpdateTenantDto {
   gstNumber?: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether GST is enabled for this tenant',
     example: false,
     required: false,
@@ -105,30 +114,35 @@ export class UpdateTenantDto {
 
 export class TenantResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Tenant ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   _id: string;
 
   @ApiProperty({
+    type: String,
     description: 'Tenant email',
     example: 'user@example.com',
   })
   email: string;
 
   @ApiProperty({
+    type: String,
     description: 'Business name',
     example: 'ABC Retail Store',
   })
   businessName: string;
 
   @ApiProperty({
+    type: String,
     description: 'Business abbreviation',
     example: 'ABC123',
   })
   businessAbbr: string;
 
   @ApiProperty({
+    type: String,
     description: 'GST Identification Number',
     example: '29AAHFU5055K1Z5',
     nullable: true,
@@ -136,30 +150,35 @@ export class TenantResponseDto {
   gstNumber?: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether GST is enabled',
     example: true,
   })
   gstEnabled: boolean;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether business abbreviation is locked',
     example: false,
   })
   abbrLocked: boolean;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether onboarding is complete',
     example: false,
   })
   onboardingComplete: boolean;
 
   @ApiProperty({
+    type: Date,
     description: 'Creation timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })
   createdAt: Date;
 
   @ApiProperty({
+    type: Date,
     description: 'Last update timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })

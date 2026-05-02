@@ -9,9 +9,9 @@ export enum DeficitGroupBy {
 
 export class ListDeficitQueryDto {
   @ApiProperty({
+    type: Number,
     description: 'Page number for pagination',
     example: 1,
-    type: 'number',
     minimum: 1,
     required: false,
   })
@@ -22,9 +22,9 @@ export class ListDeficitQueryDto {
   page?: number = 1;
 
   @ApiProperty({
+    type: Number,
     description: 'Number of records per page',
     example: 10,
-    type: 'number',
     minimum: 1,
     maximum: 100,
     required: false,
@@ -36,6 +36,7 @@ export class ListDeficitQueryDto {
   limit?: number = 10;
 
   @ApiProperty({
+    type: String,
     description: 'Group deficits by product or show flat list',
     example: 'product',
     enum: DeficitGroupBy,
@@ -48,9 +49,9 @@ export class ListDeficitQueryDto {
 
 export class ListDeficitReportQueryDto {
   @ApiProperty({
+    type: String,
     description: 'Filter by deficit resolution status',
     example: 'open',
-    type: 'string',
     enum: ['open', 'resolved', 'all'],
     required: false,
   })
@@ -58,9 +59,9 @@ export class ListDeficitReportQueryDto {
   status?: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Page number for pagination',
     example: 1,
-    type: 'number',
     minimum: 1,
     required: false,
   })
@@ -71,9 +72,9 @@ export class ListDeficitReportQueryDto {
   page?: number = 1;
 
   @ApiProperty({
+    type: Number,
     description: 'Number of records per page',
     example: 20,
-    type: 'number',
     minimum: 1,
     maximum: 100,
     required: false,

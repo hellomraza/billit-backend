@@ -16,6 +16,7 @@ import {
 
 export class CreateDeficitDto {
   @ApiProperty({
+    type: String,
     description: 'Product ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
@@ -24,6 +25,7 @@ export class CreateDeficitDto {
   productId: Types.ObjectId;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
@@ -32,9 +34,9 @@ export class CreateDeficitDto {
   outletId: Types.ObjectId;
 
   @ApiProperty({
+    type: Number,
     description: 'Deficit quantity',
     example: 5,
-    type: 'number',
     minimum: 1,
   })
   @IsNumber()
@@ -42,6 +44,7 @@ export class CreateDeficitDto {
   quantity: number;
 
   @ApiProperty({
+    type: String,
     description: 'Linked invoice ID (if deficit is from an invoice)',
     example: '507f1f77bcf86cd799439011',
     required: false,
@@ -53,6 +56,7 @@ export class CreateDeficitDto {
 
 export class ResolveDeficitDto {
   @ApiProperty({
+    type: String,
     description: 'Resolution method',
     example: 'STOCK_ADDITION',
     enum: ['STOCK_ADDITION', 'ADJUSTMENT'],
@@ -62,6 +66,7 @@ export class ResolveDeficitDto {
   resolutionMethod: ResolutionMethod;
 
   @ApiProperty({
+    type: String,
     description: 'Adjustment reason (required if ADJUSTMENT is selected)',
     example: 'DAMAGE',
     enum: ['DAMAGE', 'LOSS', 'CORRECTION'],
@@ -74,37 +79,42 @@ export class ResolveDeficitDto {
 
 export class DeficitResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Deficit record ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   _id: string;
 
   @ApiProperty({
+    type: String,
     description: 'Tenant ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   tenantId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Product ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   productId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   outletId: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Deficit quantity',
     example: 5,
-    type: 'number',
   })
   quantity: number;
 
   @ApiProperty({
+    type: String,
     description: 'Linked invoice ID',
     example: '507f1f77bcf86cd799439011',
     nullable: true,
@@ -112,6 +122,7 @@ export class DeficitResponseDto {
   linkedInvoiceId?: string;
 
   @ApiProperty({
+    type: String,
     description: 'Deficit status',
     example: 'PENDING',
     enum: ['PENDING', 'RESOLVED'],
@@ -119,6 +130,7 @@ export class DeficitResponseDto {
   status: DeficitStatus;
 
   @ApiProperty({
+    type: String,
     description: 'Resolution method',
     example: 'STOCK_ADDITION',
     enum: ['STOCK_ADDITION', 'ADJUSTMENT'],
@@ -127,6 +139,7 @@ export class DeficitResponseDto {
   resolutionMethod?: ResolutionMethod;
 
   @ApiProperty({
+    type: String,
     description: 'Adjustment reason',
     example: 'DAMAGE',
     enum: ['DAMAGE', 'LOSS', 'CORRECTION'],
@@ -135,6 +148,7 @@ export class DeficitResponseDto {
   adjustmentReason?: AdjustmentReason;
 
   @ApiProperty({
+    type: Date,
     description: 'Resolution timestamp',
     example: '2026-04-13T10:30:00.000Z',
     nullable: true,
@@ -142,12 +156,14 @@ export class DeficitResponseDto {
   resolvedAt?: Date;
 
   @ApiProperty({
+    type: Date,
     description: 'Creation timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })
   createdAt: Date;
 
   @ApiProperty({
+    type: Date,
     description: 'Last update timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })
@@ -156,6 +172,7 @@ export class DeficitResponseDto {
 
 export class GetAllWithStatusQueryDto {
   @ApiProperty({
+    type: String,
     description: 'Filter deficits by status',
     example: 'PENDING',
     enum: ['PENDING', 'RESOLVED'],
@@ -166,6 +183,7 @@ export class GetAllWithStatusQueryDto {
   status: DeficitStatus;
 
   @ApiProperty({
+    type: Number,
     description: 'Page number for pagination',
     example: 1,
     required: false,
@@ -176,6 +194,7 @@ export class GetAllWithStatusQueryDto {
   page: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Number of records per page for pagination',
     example: 10,
     required: false,

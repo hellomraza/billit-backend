@@ -12,18 +12,21 @@ export class ImportProductDto {
 
 export class ImportErrorDto {
   @ApiProperty({
+    type: Number,
     description: 'Row number in CSV (1-indexed)',
     example: 5,
   })
   rowNumber: number;
 
   @ApiProperty({
+    type: String,
     description: 'Reason for skipping the row',
     example: 'price must be positive (> 0)',
   })
   reason: string;
 
   @ApiProperty({
+    type: Object,
     description: 'The problematic row data',
     required: false,
     example: {
@@ -39,18 +42,21 @@ export class ImportErrorDto {
 
 export class ImportReportDto {
   @ApiProperty({
+    type: Number,
     description: 'Number of products successfully imported',
     example: 95,
   })
   imported: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Number of rows skipped due to validation errors',
     example: 5,
   })
   skipped: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Total data rows processed (excluding header)',
     example: 100,
   })
@@ -87,6 +93,7 @@ export class ImportReportDto {
   errors: ImportErrorDto[];
 
   @ApiProperty({
+    type: Date,
     description: 'Timestamp of when the import was processed',
     example: '2026-04-14T10:30:00.000Z',
   })
@@ -95,6 +102,7 @@ export class ImportReportDto {
 
 export class CsvTemplateDto {
   @ApiProperty({
+    type: String,
     description: 'CSV template content showing column structure and examples',
     example:
       'name,price,gst_rate,opening_stock,deficit_threshold\n' +
@@ -105,6 +113,7 @@ export class CsvTemplateDto {
   template: string;
 
   @ApiProperty({
+    type: String,
     description: 'Detailed instructions for CSV format and constraints',
     example:
       'Required columns: name, price, gst_rate. Optional: opening_stock (default 0), deficit_threshold (default 10). ' +

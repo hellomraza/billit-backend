@@ -10,6 +10,7 @@ import {
 
 export class CreateOutletDto {
   @ApiProperty({
+    type: String,
     description: 'Outlet name',
     example: 'Main Store',
   })
@@ -18,6 +19,7 @@ export class CreateOutletDto {
   outletName: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet abbreviation (3-6 characters)',
     example: 'MAIN',
     minLength: 3,
@@ -30,6 +32,7 @@ export class CreateOutletDto {
   outletAbbr: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether this is the default outlet',
     example: false,
     required: false,
@@ -42,6 +45,7 @@ export class CreateOutletDto {
 
 export class UpdateOutletDto {
   @ApiProperty({
+    type: String,
     description: 'Outlet name',
     example: 'Main Store Updated',
     required: false,
@@ -51,6 +55,7 @@ export class UpdateOutletDto {
   outletName?: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet abbreviation (3-6 characters)',
     example: 'MAIN',
     minLength: 3,
@@ -64,6 +69,7 @@ export class UpdateOutletDto {
   outletAbbr?: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether this is the default outlet',
     example: true,
     required: false,
@@ -75,48 +81,56 @@ export class UpdateOutletDto {
 
 export class OutletResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Outlet ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   _id: string;
 
   @ApiProperty({
+    type: String,
     description: 'Tenant ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   tenantId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet name',
     example: 'Main Store',
   })
   outletName: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet abbreviation',
     example: 'MAIN',
   })
   outletAbbr: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether this is the default outlet',
     example: true,
   })
   isDefault: boolean;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether abbreviation is locked',
     example: false,
   })
   abbrLocked: boolean;
 
   @ApiProperty({
+    type: Date,
     description: 'Creation timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })
   createdAt: Date;
 
   @ApiProperty({
+    type: Date,
     description: 'Last update timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })

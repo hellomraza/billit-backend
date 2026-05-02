@@ -11,6 +11,7 @@ import { Types } from 'mongoose';
 
 export class CreateStockDto {
   @ApiProperty({
+    type: String,
     description: 'Product ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
@@ -19,6 +20,7 @@ export class CreateStockDto {
   productId: Types.ObjectId;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
@@ -29,8 +31,8 @@ export class CreateStockDto {
   @ApiProperty({
     description: 'Current inventory quantity',
     example: 100,
+    type: Number,
     minimum: 0,
-    type: 'number',
   })
   @IsNumber()
   @IsNotEmpty()
@@ -41,9 +43,9 @@ export class CreateStockDto {
 
 export class UpdateStockDto {
   @ApiProperty({
+    type: Number,
     description: 'New inventory quantity',
     example: 150,
-    type: 'number',
   })
   @IsNumber()
   @IsNotEmpty()
@@ -53,37 +55,42 @@ export class UpdateStockDto {
 
 export class StockResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Stock record ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   _id: string;
 
   @ApiProperty({
+    type: String,
     description: 'Tenant ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   tenantId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Product ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   productId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   outletId: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Current inventory quantity',
     example: 100,
-    type: 'number',
   })
   quantity: number;
 
   @ApiProperty({
+    type: Date,
     description: 'Last update timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })
@@ -92,9 +99,9 @@ export class StockResponseDto {
 
 export class AdjustStockDto {
   @ApiProperty({
+    type: Number,
     description: 'Quantity to adjust (positive or negative)',
     example: 10,
-    type: 'number',
   })
   @IsNumber()
   @IsNotEmpty()
@@ -102,6 +109,7 @@ export class AdjustStockDto {
   quantity: number;
 
   @ApiProperty({
+    type: String,
     description: 'Reference ID (e.g., invoice ID)',
     example: '507f1f77bcf86cd799439011',
     required: false,

@@ -11,6 +11,7 @@ import {
 
 export class CreateProductDto {
   @ApiProperty({
+    type: String,
     description: 'Product name',
     example: 'Laptop',
   })
@@ -19,9 +20,9 @@ export class CreateProductDto {
   name: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Base price in INR',
     example: 50000,
-    type: 'number',
   })
   @IsNumber()
   @IsNotEmpty()
@@ -29,6 +30,7 @@ export class CreateProductDto {
   basePrice: number; // Will be converted to Decimal128
 
   @ApiProperty({
+    type: Number,
     description: 'GST rate percentage (0, 5, 12, 18, or 28)',
     example: 18,
     enum: [0, 5, 12, 18, 28],
@@ -39,6 +41,7 @@ export class CreateProductDto {
   gstRate: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Stock deficit threshold for alert',
     example: 5,
     minimum: 1,
@@ -52,6 +55,7 @@ export class CreateProductDto {
 
 export class UpdateProductDto {
   @ApiProperty({
+    type: String,
     description: 'Product name',
     example: 'Laptop Pro',
     required: false,
@@ -61,9 +65,9 @@ export class UpdateProductDto {
   name?: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Base price in INR',
     example: 60000,
-    type: 'number',
     required: false,
   })
   @IsOptional()
@@ -72,6 +76,7 @@ export class UpdateProductDto {
   basePrice?: number;
 
   @ApiProperty({
+    type: Number,
     description: 'GST rate percentage (0, 5, 12, 18, or 28)',
     example: 18,
     enum: [0, 5, 12, 18, 28],
@@ -83,6 +88,7 @@ export class UpdateProductDto {
   gstRate?: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Stock deficit threshold for alert',
     example: 10,
     minimum: 1,
@@ -97,31 +103,35 @@ export class UpdateProductDto {
 
 export class ProductResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Product ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   _id: string;
 
   @ApiProperty({
+    type: String,
     description: 'Tenant ID (MongoDB ObjectId)',
     example: '507f1f77bcf86cd799439011',
   })
   tenantId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Product name',
     example: 'Laptop',
   })
   name: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Base price in INR',
     example: 50000,
-    type: 'number',
   })
   basePrice: number;
 
   @ApiProperty({
+    type: Number,
     description: 'GST rate percentage',
     example: 18,
     enum: [0, 5, 12, 18, 28],
@@ -129,24 +139,28 @@ export class ProductResponseDto {
   gstRate: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Stock deficit threshold',
     example: 5,
   })
   deficitThreshold: number;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Product deleted status',
     example: false,
   })
   isDeleted: boolean;
 
   @ApiProperty({
+    type: Date,
     description: 'Creation timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })
   createdAt: Date;
 
   @ApiProperty({
+    type: Date,
     description: 'Last update timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })
@@ -155,6 +169,7 @@ export class ProductResponseDto {
 
 export class ProductWithStockResponseDto extends ProductResponseDto {
   @ApiProperty({
+    type: Number,
     description: 'Current stock level for the product',
     example: 50,
   })

@@ -10,30 +10,35 @@ import {
 
 export class SettingsResponseDto {
   @ApiProperty({
+    type: String,
     description: 'Tenant email',
     example: 'user@example.com',
   })
   email: string;
 
   @ApiProperty({
+    type: String,
     description: 'Business name',
     example: 'ABC Retail Store',
   })
   businessName: string;
 
   @ApiProperty({
+    type: String,
     description: 'Business abbreviation (locked after first invoice)',
     example: 'ABC123',
   })
   businessAbbr: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Business abbreviation is locked',
     example: false,
   })
   abbrLocked: boolean;
 
   @ApiProperty({
+    type: String,
     description: 'GST Identification Number',
     example: '29AAHFU5055K1Z5',
     nullable: true,
@@ -41,27 +46,30 @@ export class SettingsResponseDto {
   gstNumber?: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Whether GST is enabled',
     example: true,
   })
   gstEnabled: boolean;
 
   @ApiProperty({
+    type: Date,
     description: 'Creation timestamp',
     example: '2026-04-13T10:30:00.000Z',
   })
   createdAt: Date;
 
   @ApiProperty({
+    type: Number,
     description: 'Count of saved (non-deleted) drafts',
     example: 3,
-    type: 'number',
   })
   savedDraftCount: number;
 }
 
 export class UpdateBusinessSettingsDto {
   @ApiProperty({
+    type: String,
     description: 'Business name',
     example: 'ABC Retail Store Updated',
   })
@@ -74,6 +82,7 @@ export class UpdateBusinessSettingsDto {
 
 export class UpdateGstSettingsDto {
   @ApiProperty({
+    type: String,
     description: 'GST Identification Number (GSTIN)',
     example: '29AAHFU5055K1Z5',
   })
@@ -83,6 +92,7 @@ export class UpdateGstSettingsDto {
   gstNumber: string;
 
   @ApiProperty({
+    type: Boolean,
     description: 'Enable or disable GST mode',
     example: true,
   })
@@ -93,6 +103,7 @@ export class UpdateGstSettingsDto {
 
 export class ChangePasswordSettingsDto {
   @ApiProperty({
+    type: String,
     description: 'Current password',
     example: 'currentPassword123',
   })
@@ -101,6 +112,7 @@ export class ChangePasswordSettingsDto {
   currentPassword: string;
 
   @ApiProperty({
+    type: String,
     description: 'New password (min 8 chars, letter + number required)',
     example: 'newPassword456',
     minLength: 8,

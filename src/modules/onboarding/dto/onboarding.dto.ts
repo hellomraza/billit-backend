@@ -10,6 +10,7 @@ import {
 
 export class UpdateBusinessDto {
   @ApiProperty({
+    type: String,
     description: 'Business name (required)',
     example: 'ABC Retail Store',
     minLength: 1,
@@ -22,6 +23,7 @@ export class UpdateBusinessDto {
   businessName: string;
 
   @ApiProperty({
+    type: String,
     description:
       'Business abbreviation (3-6 uppercase alphanumeric characters, locked after first invoice)',
     example: 'ABC123',
@@ -38,6 +40,7 @@ export class UpdateBusinessDto {
 
 export class UpdateOnboardingOutletDto {
   @ApiProperty({
+    type: String,
     description: 'Outlet name (required)',
     example: 'Main Store',
     minLength: 1,
@@ -50,6 +53,7 @@ export class UpdateOnboardingOutletDto {
   name: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet abbreviation (3-6 uppercase alphanumeric characters)',
     example: 'OUT001',
     minLength: 3,
@@ -63,6 +67,7 @@ export class UpdateOnboardingOutletDto {
   abbr: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet address (optional)',
     example: '123 Main Street',
     required: false,
@@ -72,6 +77,7 @@ export class UpdateOnboardingOutletDto {
   address?: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet city (optional)',
     example: 'Mumbai',
     required: false,
@@ -81,6 +87,7 @@ export class UpdateOnboardingOutletDto {
   city?: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet state (optional)',
     example: 'Maharashtra',
     required: false,
@@ -90,6 +97,7 @@ export class UpdateOnboardingOutletDto {
   state?: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet PIN code (optional)',
     example: '400001',
     required: false,
@@ -101,6 +109,7 @@ export class UpdateOnboardingOutletDto {
 
 export class UpdateGstDto {
   @ApiProperty({
+    type: String,
     description: 'GST Identification Number (GSTIN)',
     example: '29AAHFU5055K1Z5',
     required: true,
@@ -113,6 +122,7 @@ export class UpdateGstDto {
 
 export class OnboardingStatusDto {
   @ApiProperty({
+    type: Object,
     description: 'Current onboarding step status',
     example: {
       businessStep: true,
@@ -131,6 +141,7 @@ export class OnboardingStatusDto {
 
 export class OnboardingCompleteDto {
   @ApiProperty({
+    type: String,
     description: 'Success message',
     example: 'Onboarding completed successfully',
   })

@@ -15,6 +15,7 @@ import { DraftPaymentMethod } from '../draft.schema';
 
 export class DraftItemDto {
   @ApiProperty({
+    type: String,
     description: 'Product ID from client state',
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
@@ -23,6 +24,7 @@ export class DraftItemDto {
   productId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Product display name',
     example: 'Rice 1kg',
   })
@@ -31,6 +33,7 @@ export class DraftItemDto {
   productName: string;
 
   @ApiProperty({
+    type: Number,
     description: 'Requested quantity',
     example: 2,
     minimum: 1,
@@ -40,6 +43,7 @@ export class DraftItemDto {
   quantity: number;
 
   @ApiProperty({
+    type: Number,
     description: 'Unit price snapshot',
     example: 60,
   })
@@ -47,6 +51,7 @@ export class DraftItemDto {
   unitPrice: number;
 
   @ApiProperty({
+    type: Number,
     description: 'GST rate',
     example: 5,
   })
@@ -56,6 +61,7 @@ export class DraftItemDto {
 
 export class SyncDraftDto {
   @ApiProperty({
+    type: String,
     description: 'Client-generated draft idempotency key',
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
@@ -63,6 +69,7 @@ export class SyncDraftDto {
   clientDraftId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Outlet ID (Mongo ObjectId as string)',
     example: '507f1f77bcf86cd799439011',
   })
@@ -71,6 +78,7 @@ export class SyncDraftDto {
   outletId: string;
 
   @ApiProperty({
+    type: String,
     description: 'Tab label',
     example: 'Bill 1',
     required: false,
@@ -90,6 +98,7 @@ export class SyncDraftDto {
   items: DraftItemDto[];
 
   @ApiProperty({
+    type: String,
     description: 'Customer name',
     example: 'John Doe',
     required: false,
@@ -99,6 +108,7 @@ export class SyncDraftDto {
   customerName?: string | null;
 
   @ApiProperty({
+    type: String,
     description: 'Customer phone',
     example: '+919999999999',
     required: false,
@@ -108,6 +118,7 @@ export class SyncDraftDto {
   customerPhone?: string | null;
 
   @ApiProperty({
+    type: String,
     description: 'Payment method',
     enum: DraftPaymentMethod,
     required: false,
