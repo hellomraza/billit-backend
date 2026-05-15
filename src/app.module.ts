@@ -1,6 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
@@ -28,12 +27,6 @@ import { TenantModule } from './modules/tenant/tenant.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    MongooseModule.forRoot(
-      process.env.MONGODB_URI || 'mongodb://localhost:27017/billit',
-      {
-        serverSelectionTimeoutMS: 5000,
-      },
-    ),
     DatabaseModule,
     AuthModule,
     DraftModule,

@@ -1,12 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import cookieParser from 'cookie-parser';
+import cookieParsee from 'cookie-parser';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { HttpErrorFilter } from './common/filters/http-error.filter';
 import { GlobalValidationPipe } from './common/pipes/global-validation.pipe';
 
-async function bootstrap() {
+async function createApp() {
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS for frontend communication
@@ -18,7 +18,7 @@ async function bootstrap() {
   });
 
   // Parse cookies from requests
-  app.use(cookieParser());
+  app.use(cookieParsee());
 
   // Global validation pipe with custom error formatting
   app.useGlobalPipes(new GlobalValidationPipe());
@@ -75,6 +75,14 @@ async function bootstrap() {
     customJs: [],
   });
 
+  await app.init();
+
+  return app;
+}
+
+async function bootstrap() {
+  const app = await createApp();
+
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
   console.log(
     `🚀 Server running on http://localhost:${process.env.PORT ?? 3000}`,
@@ -83,4 +91,14 @@ async function bootstrap() {
     `📚 Swagger docs available at http://localhost:${process.env.PORT ?? 3000}/api`,
   );
 }
-bootstrap();
+
+export default async function handler(req: unknown, res: unknown) {
+  const app = await createApp();
+  const server = app.getHttpAdapter().getInstance();
+
+  return server(req, res);
+}
+
+if (!process.env.VERCEL) {
+  void bootstrap();
+}
