@@ -4,12 +4,12 @@ import { DatabaseService } from './database.service';
 
 @Module({
   imports: [
-    MongooseModule.forRoot(
-      process.env.MONGODB_URI || 'mongodb://localhost:27017/billit',
-      {
+    MongooseModule.forRootAsync({
+      useFactory: () => ({
+        uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/billit',
         serverSelectionTimeoutMS: 5000,
-      },
-    ),
+      }),
+    }),
   ],
   providers: [DatabaseService],
   exports: [DatabaseService],
