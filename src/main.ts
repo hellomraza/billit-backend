@@ -80,6 +80,15 @@ async function createApp() {
   return app;
 }
 
+let cachedApp: Awaited<ReturnType<typeof createApp>> | null = null;
+
+export async function getApp() {
+  if (!cachedApp) {
+    cachedApp = await createApp();
+  }
+  return cachedApp;
+}
+
 async function bootstrap() {
   const app = await createApp();
 
