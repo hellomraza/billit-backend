@@ -16,6 +16,13 @@ export class DatabaseService implements OnModuleInit {
         this.logger.log('MongoDB connected successfully');
       }
 
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.warn(
+          'Running in production mode - ensure indexes are created',
+        );
+        return;
+      }
+
       // Create all indexes
       await this.createIndexes();
     } catch (error) {

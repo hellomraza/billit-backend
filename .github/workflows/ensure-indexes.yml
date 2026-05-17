@@ -1,0 +1,33 @@
+name: Ensure MongoDB Indexes
+
+on:
+  workflow_run:
+    workflows: ["deploy"]
+    types:
+      - completed
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+
+jobs:
+  ensure-indexes:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure MongoDB indexes
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: npm run create-indexes
