@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
-import { ClientSession, Connection } from 'mongoose';
+import { ClientSession, Connection, ConnectionStates } from 'mongoose';
+
+let isConnected = false;
 
 @Injectable()
 export class DatabaseService implements OnModuleInit {
@@ -9,26 +11,36 @@ export class DatabaseService implements OnModuleInit {
   constructor(@InjectConnection() private readonly connection: Connection) {}
 
   async onModuleInit() {
-    try {
-      // Verify MongoDB connection
-      if (this.connection.db) {
-        await this.connection.db.admin().ping();
-        this.logger.log('MongoDB connected successfully');
-      }
+    if (isConnected) {
+      this.logger.log('Reusing existing MongoDB connection');
+      return;
+    }
 
-      if (process.env.NODE_ENV === 'production') {
+    try {
+      await this.waitForConnection();
+      isConnected = true;
+      this.logger.log('MongoDB connected successfully');
+
+      if (process.env.NODE_ENV !== 'production') {
+        await this.createIndexes();
+      } else {
         this.logger.warn(
           'Running in production mode - ensure indexes are created',
         );
-        return;
       }
-
-      // Create all indexes
-      await this.createIndexes();
     } catch (error) {
       this.logger.error('Failed to connect to MongoDB', error);
       throw error;
     }
+  }
+
+  private async waitForConnection(): Promise<void> {
+    if (this.connection.readyState === ConnectionStates.connected) return;
+
+    return new Promise((resolve, reject) => {
+      this.connection.once('connected', resolve);
+      this.connection.once('error', reject);
+    });
   }
 
   private async createIndexes() {
@@ -148,23 +160,18 @@ export class DatabaseService implements OnModuleInit {
     await session.endSession();
   }
 
-  /**
-   * Execute operation within transaction
-   */
   async executeInTransaction<T>(
     operation: (session: ClientSession) => Promise<T>,
   ): Promise<T> {
     const session = await this.startSession();
+    let result: T;
     try {
-      this.startTransaction(session);
-      const result = await operation(session);
-      await this.commitTransaction(session);
-      return result;
-    } catch (error) {
-      await this.abortTransaction(session);
-      throw error;
+      await session.withTransaction(async () => {
+        result = await operation(session);
+      });
+      return result!;
     } finally {
-      await this.endSession(session);
+      await session.endSession();
     }
   }
 
