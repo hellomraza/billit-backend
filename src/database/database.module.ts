@@ -8,6 +8,8 @@ import { DatabaseService } from './database.service';
     MongooseModule.forRootAsync({
       useFactory: () => ({
         uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/billit',
+        tls: /^mongodb\+srv:\/\//.test(process.env.MONGODB_URI || ''),
+        retryWrites: /^mongodb\+srv:\/\//.test(process.env.MONGODB_URI || ''),
         serverSelectionTimeoutMS: 5000,
       }),
     }),
