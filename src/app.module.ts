@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
 import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
+import { RequestTimingMiddleware } from './common/middleware/request-timing.middleware';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DailyCounterModule } from './modules/daily-counter/daily-counter.module';
@@ -54,5 +55,8 @@ export class AppModule implements NestModule {
 
     // Apply rate limiting middleware to all routes
     consumer.apply(RateLimitMiddleware).forRoutes('*');
+
+    // Apply request timing middleware to all routes
+    consumer.apply(RequestTimingMiddleware).forRoutes('*');
   }
 }
