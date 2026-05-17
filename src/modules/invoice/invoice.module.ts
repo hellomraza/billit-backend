@@ -1,6 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { DatabaseModule } from '../../database/database.module';
 import { DailyCounterModule } from '../daily-counter/daily-counter.module';
 import { DeficitModule } from '../deficit/deficit.module';
 import { DeficitRecord, DeficitRecordSchema } from '../deficit/deficit.schema';
@@ -20,7 +19,6 @@ import { InvoiceService } from './invoice.service';
       { name: Invoice.name, schema: InvoiceSchema },
       { name: DeficitRecord.name, schema: DeficitRecordSchema },
     ]),
-    DatabaseModule,
     forwardRef(() => StockModule),
     forwardRef(() => DeficitModule),
     forwardRef(() => StockAuditModule),
