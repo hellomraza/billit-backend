@@ -173,6 +173,7 @@ export class ProductService {
         },
       },
       { $project: { stockData: 0 } },
+      { $limit: 20 },
     ];
 
     return this.productModel.aggregate(pipeline);
