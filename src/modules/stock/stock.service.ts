@@ -154,6 +154,48 @@ export class StockService {
     return stock;
   }
 
+  async addStock(
+    tenantId: string,
+    productId: string,
+    outletId: string,
+    quantity: number,
+  ): Promise<Stock> {
+    const existingStock = await this.stockModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      productId: new Types.ObjectId(productId),
+      outletId: new Types.ObjectId(outletId),
+    });
+
+    const previousQuantity = Math.max(existingStock?.quantity ?? 0, 0);
+    const newQuantity = previousQuantity + quantity;
+
+    const stock = await this.stockModel.findOneAndUpdate(
+      {
+        tenantId: new Types.ObjectId(tenantId),
+        productId: new Types.ObjectId(productId),
+        outletId: new Types.ObjectId(outletId),
+      },
+      { quantity: newQuantity },
+      { new: true, upsert: true, runValidators: true },
+    );
+
+    if (!stock) {
+      throw new NotFoundException('Stock record not found');
+    }
+
+    await this.stockAuditLogService.create(
+      tenantId,
+      productId,
+      outletId,
+      previousQuantity,
+      newQuantity,
+      ChangeType.MANUAL_UPDATE,
+      stock._id,
+    );
+
+    return stock;
+  }
+
   async delete(tenantId: string, stockId: string): Promise<void> {
     const result = await this.stockModel.findOneAndDelete({
       _id: stockId,
@@ -172,14 +214,18 @@ export class StockService {
     quantity: number,
     session?: ClientSession,
   ): Promise<Stock> {
+    const newQuantity = {
+      // Ensure quantity doesn't go below 0
+      $max: [{ $subtract: [{ $ifNull: ['$quantity', 0] }, quantity] }, 0],
+    };
     const stock = await this.stockModel.findOneAndUpdate(
       {
         tenantId: new Types.ObjectId(tenantId),
         productId: new Types.ObjectId(productId),
         outletId: new Types.ObjectId(outletId),
       },
-      { $inc: { quantity: -quantity } },
-      { new: true, session },
+      [{ $set: { quantity: newQuantity } }],
+      { new: true, upsert: true, session },
     );
 
     if (!stock) {

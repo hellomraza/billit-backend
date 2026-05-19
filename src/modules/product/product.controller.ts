@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -330,6 +331,83 @@ export class ProductController {
       tenantId,
       stock._id.toString(),
       updateStockDto,
+    );
+
+    return {
+      data: {
+        _id: updatedStock._id,
+        tenantId: updatedStock.tenantId,
+        productId: updatedStock.productId,
+        outletId: updatedStock.outletId,
+        quantity: updatedStock.quantity,
+      },
+    };
+  }
+
+  @ApiOperation({
+    summary: 'Add stock quantity for a product at a specific outlet',
+    description:
+      'Adds the given quantity to the current stock for a product at an outlet. If the current stock is negative, it is treated as 0 before adding.',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiParam({
+    name: 'productId',
+    description: 'Product ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439012',
+  })
+  @ApiQuery({
+    name: 'outletId',
+    description:
+      'Outlet ID (MongoDB ObjectId) - Required to specify which outlet stock to add to',
+    example: '507f1f77bcf86cd799439013',
+    required: true,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Stock added successfully with audit log created',
+    schema: {
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            tenantId: { type: 'string' },
+            productId: { type: 'string' },
+            outletId: { type: 'string' },
+            quantity: { type: 'number' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Invalid input (quantity must be an integer >= 1 or outletId missing)',
+  })
+  @Patch(':productId/stock/add')
+  @HttpCode(HttpStatus.OK)
+  async addStock(
+    @Param('tenantId') tenantId: string,
+    @Param('productId') productId: string,
+    @Query('outletId') outletId: string,
+    @Body('quantity') quantity: number,
+  ) {
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new BadRequestException(
+        'Quantity must be an integer greater than or equal to 1',
+      );
+    }
+
+    const updatedStock = await this.stockService.addStock(
+      tenantId,
+      productId,
+      outletId,
+      quantity,
     );
 
     return {

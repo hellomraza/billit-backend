@@ -51,6 +51,20 @@ export class UpdateStockDto {
   quantity: number;
 }
 
+export class AddStockDto {
+  @ApiProperty({
+    description: 'Quantity to add to the current inventory',
+    example: 25,
+    minimum: 1,
+    type: 'number',
+  })
+  @IsNumber()
+  @IsNotEmpty()
+  @Min(1)
+  @Type(() => Number)
+  quantity: number;
+}
+
 export class StockResponseDto {
   @ApiProperty({
     description: 'Stock record ID (MongoDB ObjectId)',

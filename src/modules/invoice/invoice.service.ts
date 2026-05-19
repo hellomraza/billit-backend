@@ -253,7 +253,10 @@ export class InvoiceService {
           );
 
           const currentQty = currentStock?.quantity || 0;
-          const newQuantity = currentQty - item.quantity;
+          // new Quantity after deduction, ensuring it doesn't go below 0
+          const newQuantity = Math.max(currentQty - item.quantity, 0);
+          // Calculate deficit quantity that needs to be created (if any)
+          const deficitQuantity = Math.max(item.quantity - currentQty, 0);
 
           // Update stock
           await this.stockService.decrementStock(
@@ -276,13 +279,13 @@ export class InvoiceService {
             session,
           );
 
-          // Create deficit record if stock goes negative
-          if (newQuantity < 0) {
+          // Create deficit record for the amount that could not be fulfilled
+          if (deficitQuantity > 0) {
             await this.deficitService.create(
               tenantId,
               item.productId.toString(),
               createInvoiceDto.outletId.toString(),
-              Math.abs(newQuantity),
+              deficitQuantity,
               invoice._id,
               session,
             );
