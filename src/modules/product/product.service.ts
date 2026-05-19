@@ -77,7 +77,7 @@ export class ProductService {
 
     // Aggregation pipeline to join products with their stock quantity for specific outlet
     const pipeline: PipelineStage[] = [
-      { $match: { tenantId: new Types.ObjectId(tenantId), isDeleted: false } },
+      { $match: matchStage },
       {
         $lookup: {
           from: 'stocks', // collection name (IMPORTANT)
