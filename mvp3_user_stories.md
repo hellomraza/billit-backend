@@ -121,13 +121,13 @@ For all existing invoices: set all three bill discount fields to their defaults.
 
 ---
 
-- [ ] **ST-01.2.1** Add `billDiscountType`, `billDiscountValue`, `billDiscountAmount` to the Invoice root schema. Defaults: `NONE`, `0`, `0`.
+- [x] **ST-01.2.1** Add `billDiscountType`, `billDiscountValue`, `billDiscountAmount` to the Invoice root schema. Defaults: `NONE`, `0`, `0`.
   - **Expected output:** These three fields appear on every invoice document.
 
-- [ ] **ST-01.2.2** Update the Invoice items array schema to include `itemDiscountType`, `itemDiscountValue`, `itemDiscountAmount` on each item element. Defaults: `NONE`, `0`, `0`.
+- [x] **ST-01.2.2** Update the Invoice items array schema to include `itemDiscountType`, `itemDiscountValue`, `itemDiscountAmount` on each item element. Defaults: `NONE`, `0`, `0`.
   - **Expected output:** Every item inside `invoice.items` has the three discount fields.
 
-- [ ] **ST-01.2.3** Write and run the migration that updates all existing invoices. Verify: pick 3 old invoices, confirm their discount fields are set to defaults and their items arrays all have the new fields.
+- [x] **ST-01.2.3** Write and run the migration that updates all existing invoices. Verify: pick 3 old invoices, confirm their discount fields are set to defaults and their items arrays all have the new fields.
   - **Expected output:** Migration runs without errors. Zero items are missing discount fields after migration.
 
 ---

@@ -14,6 +14,12 @@ export enum InvoiceType {
   REFUND = 'REFUND',
 }
 
+export enum DiscountType {
+  NONE = 'NONE',
+  PERCENTAGE = 'PERCENTAGE',
+  FLAT = 'FLAT',
+}
+
 export interface InvoiceItem {
   productId: Types.ObjectId;
   productName: string;
@@ -23,6 +29,9 @@ export interface InvoiceItem {
   gstAmount: any;
   lineTotal: any;
   overridden?: boolean; // Whether this item was overridden due to insufficient stock
+  itemDiscountType: DiscountType; // Discount type applied to this item
+  itemDiscountValue: any; // Discount value (percentage or flat amount)
+  itemDiscountAmount: any; // Computed discount amount in rupees
 }
 
 export type InvoiceDocument = Invoice & Document;
@@ -99,6 +108,16 @@ export class Invoice {
 
   @Prop({ maxlength: 500, default: null, nullable: true })
   refundReason: string;
+
+  // Bill-level discount fields (immutable snapshot from invoice creation time)
+  @Prop({ enum: DiscountType, default: DiscountType.NONE })
+  billDiscountType: DiscountType;
+
+  @Prop({ type: 'Decimal128', default: 0 })
+  billDiscountValue: any;
+
+  @Prop({ type: 'Decimal128', default: 0 })
+  billDiscountAmount: any;
 
   @Prop()
   createdAt: Date;
