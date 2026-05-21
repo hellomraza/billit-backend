@@ -597,4 +597,43 @@ export class InvoiceDetailResponseDto {
     quantity: number;
     currentResolutionStatus: 'PENDING' | 'RESOLVED';
   }>;
+
+  @ApiProperty({
+    description: 'Summary of refunds if this is a SALE invoice',
+    required: false,
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        invoiceNumber: { type: 'string' },
+        grandTotal: { type: 'number' },
+        createdAt: { type: 'string' },
+        itemCount: { type: 'number' },
+      },
+    },
+  })
+  refunds?: Array<{
+    id: string;
+    invoiceNumber: string;
+    grandTotal: number;
+    createdAt: string;
+    itemCount: number;
+  }>;
+
+  @ApiProperty({
+    description: 'Summary of the original invoice if this is a REFUND invoice',
+    required: false,
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      invoiceNumber: { type: 'string' },
+      createdAt: { type: 'string' },
+    },
+  })
+  originalInvoice?: {
+    id: string;
+    invoiceNumber: string;
+    createdAt: string;
+  };
 }

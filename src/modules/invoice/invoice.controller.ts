@@ -32,7 +32,8 @@ import {
   OverrideBlockedResponseDto,
   StockInsufficientResponseDto,
 } from './dto/invoice-create.dto';
-import { PaymentMethod } from './invoice.schema';
+import { CreateRefundDto } from './dto/invoice-refund.dto';
+import { PaymentMethod, InvoiceType } from './invoice.schema';
 import { InvoiceService } from './invoice.service';
 
 @UseGuards(JwtAuthGuard, TenantValidationGuard)
@@ -279,6 +280,13 @@ export class InvoiceController {
     description: 'Filter by product ID in invoice items',
     example: '507f1f77bcf86cd799439011',
   })
+  @ApiQuery({
+    name: 'invoiceType',
+    required: false,
+    type: 'string',
+    description: 'Filter by invoice type (SALE, REFUND, ALL)',
+    example: 'SALE',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated list of invoices matching filters',
@@ -306,6 +314,7 @@ export class InvoiceController {
     @Query('gstEnabled') gstEnabled?: string,
     @Query('outletId') outletId?: string,
     @Query('productId') productId?: string,
+    @Query('invoiceType') invoiceType?: string,
   ) {
     // Cap limit to 100
     const parsedLimit = Math.min(parseInt(limit) || 20, 100);
@@ -328,6 +337,7 @@ export class InvoiceController {
               : undefined,
         outletId,
         productId,
+        invoiceType,
       },
     );
 
@@ -364,8 +374,57 @@ export class InvoiceController {
     @Param('tenantId') tenantId: string,
     @Param('invoiceId') invoiceId: string,
   ) {
-    const invoice = await this.invoiceService.findById(tenantId, invoiceId);
+    const invoice: any = await this.invoiceService.findById(tenantId, invoiceId);
+    
+    if (invoice.invoiceType === InvoiceType.SALE) {
+      const refunds = await this.invoiceService.findRefundsByOriginalInvoice(tenantId, invoiceId);
+      invoice.refunds = refunds.map(r => ({
+        id: r._id.toString(),
+        invoiceNumber: r.invoiceNumber,
+        grandTotal: this.parseDecimal(r.grandTotal),
+        createdAt: r.createdAt.toISOString(),
+        itemCount: r.items.length,
+      }));
+    } else if (invoice.invoiceType === InvoiceType.REFUND && invoice.originalInvoiceId) {
+      const original = await this.invoiceService.findOriginalInvoiceSummary(tenantId, invoice.originalInvoiceId.toString());
+      if (original) {
+        invoice.originalInvoice = {
+          id: original._id.toString(),
+          invoiceNumber: original.invoiceNumber,
+          createdAt: original.createdAt.toISOString(),
+        };
+      }
+    }
+
     return this.invoiceToDetailResponse(invoice);
+  }
+
+  /**
+   * Create refund invoice
+   */
+  @ApiOperation({ summary: 'Create refund invoice' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID',
+  })
+  @ApiParam({
+    name: 'invoiceId',
+    description: 'Original Invoice ID',
+  })
+  @ApiResponse({ status: 201, description: 'Refund invoice created' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @Post(':invoiceId/refund')
+  async createRefund(
+    @Param('tenantId') tenantId: string,
+    @Param('invoiceId') invoiceId: string,
+    @Body() createRefundDto: CreateRefundDto,
+  ) {
+    const refund = await this.invoiceService.createRefund(tenantId, invoiceId, createRefundDto);
+    return {
+      statusCode: 201,
+      message: 'Refund invoice created successfully',
+      data: this.invoiceToDetailResponse(refund),
+    };
   }
 
   /**
@@ -488,6 +547,8 @@ export class InvoiceController {
           quantity: item.quantity,
           currentResolutionStatus: 'PENDING', // TODO: Fetch actual status from deficit records
         })),
+      refunds: invoice.refunds,
+      originalInvoice: invoice.originalInvoice,
     };
   }
 
