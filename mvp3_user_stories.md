@@ -161,7 +161,7 @@ Add these fields to the Draft model:
 
 ---
 
-- [ ] **ST-01.3.1** Add `billDiscountType` and `billDiscountValue` to the Draft root schema. Add `itemDiscountType` and `itemDiscountValue` to each item element within the Draft's `items` array. Write and run the migration.
+- [x] **ST-01.3.1** Add `billDiscountType` and `billDiscountValue` to the Draft root schema. Add `itemDiscountType` and `itemDiscountValue` to each item element within the Draft's `items` array. Write and run the migration.
   - **Expected output:** All existing draft records have the new fields at their defaults. The Draft sync endpoint (`POST /drafts/sync`) still works without breaking.
 
 ---

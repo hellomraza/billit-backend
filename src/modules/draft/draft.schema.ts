@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { DiscountType } from '../invoice/invoice.schema';
 
 export enum DraftPaymentMethod {
   CASH = 'CASH',
@@ -13,6 +14,8 @@ export interface DraftItem {
   quantity: number;
   unitPrice: any;
   gstRate: number;
+  itemDiscountType: DiscountType;
+  itemDiscountValue: any;
 }
 
 export type DraftDocument = Draft & Document;
@@ -56,6 +59,12 @@ export class Draft {
 
   @Prop()
   updatedAt!: Date;
+
+  @Prop({ enum: DiscountType, default: DiscountType.NONE })
+  billDiscountType?: DiscountType;
+
+  @Prop({ type: 'Decimal128', default: 0 })
+  billDiscountValue?: any;
 }
 
 export const DraftSchema = SchemaFactory.createForClass(Draft);
