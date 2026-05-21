@@ -552,8 +552,16 @@ export class InvoiceService {
       );
     }
 
-    const violations = [];
-    const validItems = [];
+    const violations: Array<{
+      productId: string;
+      productName: string;
+      maxReturnableQty: number;
+      requestedQty: number;
+    }> = [];
+
+    const validItems: Array<
+      InvoiceItem & { effectiveUnitPrice: number; returnQuantity: number }
+    > = [];
 
     const existingRefunds = await this.invoiceModel.find({
       tenantId: new Types.ObjectId(tenantId),
@@ -568,7 +576,7 @@ export class InvoiceService {
       );
       if (!originalItem) {
         throw new BadRequestException(
-          `Product ${reqItem.productId} not found in original invoice`,
+          `Product ${reqItem.productId.toString()} not found in original invoice`,
         );
       }
 
@@ -694,7 +702,7 @@ export class InvoiceService {
         const grandTotal = Math.round((subtotal + totalGstAmount) * 100) / 100;
 
         const invoiceNumber = await this.dailyCounterService.incrementAndGet(
-          originalInvoice.outletId.toString(),
+          originalInvoice.outletId,
           new Types.ObjectId(tenantId),
           originalInvoice.outletAbbr,
           session,
