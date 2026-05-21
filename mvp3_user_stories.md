@@ -1,4 +1,5 @@
 # MVP 3 — Refunds and Discounts
+
 ## User Story Breakdown with Tasks and Subtasks
 
 **Version:** 1.0  
@@ -21,19 +22,19 @@ Complete tasks in the order listed within each story. Stories can be worked in p
 
 ## Story Map Overview
 
-| # | User Story | Type | Priority |
-|---|---|---|---|
-| US-01 | Database Schema — Refund and Discount fields | BE | Must have |
-| US-02 | Refund API — Create refund endpoint | BE | Must have |
-| US-03 | Discount Calculation Engine — Canonical formula as shared utility | BE + FE | Must have |
-| US-04 | Invoice Creation API — Accept and process discount fields | BE | Must have |
-| US-05 | Zustand Store — Draft discount state and types | FE | Must have |
-| US-06 | Billing Screen — Item-level discount UI | FE | Must have |
-| US-07 | Billing Screen — Bill-level discount UI and updated summary | FE | Must have |
-| US-08 | Invoice History — Refund badge, negative totals, type filter | FE | Must have |
-| US-09 | Invoice Detail (SALE) — Refund button, eligibility, discount display, Returns section | FE | Must have |
-| US-10 | Refund Selection Screen — UI, validation, and submission | FE | Must have |
-| US-11 | Refund Invoice Detail — New screen for REFUND type invoices | FE | Must have |
+| #     | User Story                                                                            | Type    | Priority  |
+| ----- | ------------------------------------------------------------------------------------- | ------- | --------- |
+| US-01 | Database Schema — Refund and Discount fields                                          | BE      | Must have |
+| US-02 | Refund API — Create refund endpoint                                                   | BE      | Must have |
+| US-03 | Discount Calculation Engine — Canonical formula as shared utility                     | BE + FE | Must have |
+| US-04 | Invoice Creation API — Accept and process discount fields                             | BE      | Must have |
+| US-05 | Zustand Store — Draft discount state and types                                        | FE      | Must have |
+| US-06 | Billing Screen — Item-level discount UI                                               | FE      | Must have |
+| US-07 | Billing Screen — Bill-level discount UI and updated summary                           | FE      | Must have |
+| US-08 | Invoice History — Refund badge, negative totals, type filter                          | FE      | Must have |
+| US-09 | Invoice Detail (SALE) — Refund button, eligibility, discount display, Returns section | FE      | Must have |
+| US-10 | Refund Selection Screen — UI, validation, and submission                              | FE      | Must have |
+| US-11 | Refund Invoice Detail — New screen for REFUND type invoices                           | FE      | Must have |
 
 ---
 
@@ -55,13 +56,14 @@ Complete tasks in the order listed within each story. Stories can be worked in p
 **How:**  
 Open the Invoice model file and add the following fields:
 
-| Field | Type | Constraints | Default |
-|---|---|---|---|
-| invoiceType | enum: `SALE`, `REFUND` | Required | `SALE` |
-| originalInvoiceId | UUID / ObjectId ref → Invoice | Optional, nullable | `null` |
-| refundReason | string | Optional, max 500 chars | `null` |
+| Field             | Type                          | Constraints             | Default |
+| ----------------- | ----------------------------- | ----------------------- | ------- |
+| invoiceType       | enum: `SALE`, `REFUND`        | Required                | `SALE`  |
+| originalInvoiceId | UUID / ObjectId ref → Invoice | Optional, nullable      | `null`  |
+| refundReason      | string                        | Optional, max 500 chars | `null`  |
 
 **Rules:**
+
 - `invoiceType` must default to `SALE` so no existing code breaks.
 - `originalInvoiceId` is a self-referential foreign key: a REFUND invoice points back to the SALE invoice it refunds. It must be `null` for all SALE invoices.
 - `refundReason` is free text, stored as-is, no transformation needed.
@@ -98,19 +100,19 @@ Write a migration that sets `invoiceType = SALE` and `originalInvoiceId = null` 
 
 **Changes to Invoice root:**
 
-| Field | Type | Default |
-|---|---|---|
-| billDiscountType | enum: `NONE`, `PERCENTAGE`, `FLAT` | `NONE` |
-| billDiscountValue | decimal | `0` |
-| billDiscountAmount | decimal | `0` |
+| Field              | Type                               | Default |
+| ------------------ | ---------------------------------- | ------- |
+| billDiscountType   | enum: `NONE`, `PERCENTAGE`, `FLAT` | `NONE`  |
+| billDiscountValue  | decimal                            | `0`     |
+| billDiscountAmount | decimal                            | `0`     |
 
 **Changes to each item object inside `Invoice.items` array:**
 
-| Field | Type | Default |
-|---|---|---|
-| itemDiscountType | enum: `NONE`, `PERCENTAGE`, `FLAT` | `NONE` |
-| itemDiscountValue | decimal | `0` |
-| itemDiscountAmount | decimal | `0` |
+| Field              | Type                               | Default |
+| ------------------ | ---------------------------------- | ------- |
+| itemDiscountType   | enum: `NONE`, `PERCENTAGE`, `FLAT` | `NONE`  |
+| itemDiscountValue  | decimal                            | `0`     |
+| itemDiscountAmount | decimal                            | `0`     |
 
 **Migration:**  
 For all existing invoices: set all three bill discount fields to their defaults. For each item in each invoice's `items` array: add the three item discount fields with default values. This is a non-destructive migration.
@@ -180,6 +182,7 @@ Add these fields to the Draft model:
 **What:** `POST /tenants/:tenantId/invoices/:invoiceId/refund` — accepts a list of items to refund and their quantities, validates everything, and creates a REFUND invoice atomically.
 
 **Request shape:**
+
 ```json
 {
   "clientGeneratedId": "uuid-v4",
@@ -246,10 +249,12 @@ Only items with quantity > 0 should be included in the request. Items not includ
 
 **Discounted unit price calculation for refund:**  
 The refund must use the price the customer actually paid per unit — not the pre-discount price. From the original invoice's item:
+
 ```
 discountedUnitSubtotal = (originalItem.unitPrice × originalItem.quantity) - originalItem.itemDiscountAmount
 effectiveUnitPrice = discountedUnitSubtotal / originalItem.quantity
 ```
+
 This `effectiveUnitPrice` is what gets used as `unitPrice` in each refund item.
 
 **Expected output:** Endpoint exists. Calling it once creates a REFUND invoice and increases stock. Calling it again with the same `clientGeneratedId` returns the existing refund invoice without creating a duplicate or modifying stock again.
@@ -285,11 +290,13 @@ This `effectiveUnitPrice` is what gets used as `unitPrice` in each refund item.
 
 **How:**  
 After fetching the invoice, if `invoice.invoiceType === SALE`:
+
 - Query all invoices where `originalInvoiceId = invoice.id`.
 - Map each to a summary object: `{ id, invoiceNumber, grandTotal, createdAt, itemCount }`.
 - Include as `refunds: [...]` in the response. Empty array if none.
 
 If `invoice.invoiceType === REFUND`:
+
 - Include `originalInvoice: { id, invoiceNumber, createdAt }` in the response (a summary of the SALE invoice it refers to). This lets the frontend show the "Refund for: [ORIGINAL-001]" link.
 
 **Expected output:** GET /invoices/:id for a SALE invoice includes a `refunds` array. GET /invoices/:id for a REFUND invoice includes an `originalInvoice` summary object.
@@ -340,34 +347,34 @@ Add an optional `invoiceType` query parameter. If present and value is `SALE` or
 interface ItemInput {
   unitPrice: number;
   quantity: number;
-  gstRate: number;           // 0, 5, 12, 18, or 28
+  gstRate: number; // 0, 5, 12, 18, or 28
   itemDiscountType: 'NONE' | 'PERCENTAGE' | 'FLAT';
   itemDiscountValue: number;
 }
 
 interface ItemResult {
-  baseLineTotal: number;       // unitPrice × quantity
-  itemDiscountAmount: number;  // computed discount in ₹ (clamped)
-  discountedSubtotal: number;  // baseLineTotal - itemDiscountAmount
-  gstAmount: number;           // discountedSubtotal × (gstRate / 100)
-  lineTotal: number;           // discountedSubtotal + gstAmount
+  baseLineTotal: number; // unitPrice × quantity
+  itemDiscountAmount: number; // computed discount in ₹ (clamped)
+  discountedSubtotal: number; // baseLineTotal - itemDiscountAmount
+  gstAmount: number; // discountedSubtotal × (gstRate / 100)
+  lineTotal: number; // discountedSubtotal + gstAmount
 }
 
 interface BillResult {
   items: ItemResult[];
-  subtotal: number;                    // SUM(discountedSubtotal)
-  totalGstAmount: number;              // SUM(gstAmount)
-  preDiscountGrandTotal: number;       // subtotal + totalGstAmount
-  billDiscountAmount: number;          // computed bill discount in ₹ (clamped)
-  grandTotal: number;                  // preDiscountGrandTotal - billDiscountAmount
+  subtotal: number; // SUM(discountedSubtotal)
+  totalGstAmount: number; // SUM(gstAmount)
+  preDiscountGrandTotal: number; // subtotal + totalGstAmount
+  billDiscountAmount: number; // computed bill discount in ₹ (clamped)
+  grandTotal: number; // preDiscountGrandTotal - billDiscountAmount
 }
 
 function calculateDiscounts(
   items: ItemInput[],
   billDiscountType: 'NONE' | 'PERCENTAGE' | 'FLAT',
   billDiscountValue: number,
-  gstEnabled: boolean
-): BillResult
+  gstEnabled: boolean,
+): BillResult;
 ```
 
 **Step-by-step implementation:**
@@ -460,6 +467,7 @@ Implement the exact same function as T-03.1. Copy the algorithm exactly. Use the
 **What:** Modify `POST /tenants/:tenantId/invoices` to accept discount fields in the request body and compute/store all discount amounts using the server-side discount calculator.
 
 **New fields in the request body:**
+
 ```json
 {
   "clientGeneratedId": "uuid",
@@ -487,6 +495,7 @@ All new discount fields are optional. If absent, they default to `NONE` / `0`. E
 **Server processing changes:**
 
 After passing all existing stock validation checks (same as MVP 1), before the atomic commit:
+
 1. Call `calculateDiscounts(items, billDiscountType, billDiscountValue, gstEnabled)` using the server-side utility.
 2. Use the returned `ItemResult[]` and `BillResult` to populate the invoice fields.
 3. Store `itemDiscountType`, `itemDiscountValue`, `itemDiscountAmount` on each invoice item.
@@ -543,15 +552,15 @@ export interface DraftItem {
   quantity: number;
   unitPrice: number;
   gstRate: 0 | 5 | 12 | 18 | 28;
-  itemDiscountType: DiscountType;   // NEW — default: 'NONE'
-  itemDiscountValue: number;         // NEW — default: 0
+  itemDiscountType: DiscountType; // NEW — default: 'NONE'
+  itemDiscountValue: number; // NEW — default: 0
 }
 
 // Update LocalDraft interface — add these fields:
 export interface LocalDraft {
   // ...all existing fields...
-  billDiscountType: DiscountType;   // NEW — default: 'NONE'
-  billDiscountValue: number;         // NEW — default: 0
+  billDiscountType: DiscountType; // NEW — default: 'NONE'
+  billDiscountValue: number; // NEW — default: 0
 }
 ```
 
@@ -579,6 +588,7 @@ Any `DraftItem` objects already in the Zustand store (persisted from MVP 1/2) wi
 
 **How:**  
 Add the following actions to the store. Each action:
+
 1. Validates inputs (clamp values, handle edge cases).
 2. Updates the appropriate draft in the `drafts` array.
 3. Sets `syncStatus = 'PENDING_SYNC'` and updates `localUpdatedAt`.
@@ -610,6 +620,7 @@ clearBillDiscount: (clientDraftId: string) => void;
 ```
 
 **Implementation of `setItemDiscount`:**
+
 ```typescript
 setItemDiscount: (clientDraftId, productId, discountType, discountValue) =>
   set((state) => ({
@@ -631,6 +642,7 @@ setItemDiscount: (clientDraftId, productId, discountType, discountValue) =>
 ```
 
 **Implementation of `setBillDiscount`:**
+
 ```typescript
 setBillDiscount: (clientDraftId, discountType, discountValue) =>
   set((state) => ({
@@ -700,10 +712,12 @@ Include `billDiscountType`, `billDiscountValue` from the draft root and `itemDis
 Modify the existing cart item component (e.g. `features/billing/billing-cart-item.tsx` or equivalent).
 
 **Collapsed state:**
+
 - Show a small "%" or tag icon/button labeled "Discount" to the right of the item row (or as a small action below the item name).
 - If a discount is already active on this item, the button shows the active discount instead (e.g. "−10%" or "−₹20") and is visually highlighted to indicate an active state.
 
 **Expanded state:**
+
 - Below the item row, show a discount input section.
 - Two options (radio buttons or a segmented control): "%" and "₹".
 - A numeric input field for the discount value.
@@ -734,11 +748,13 @@ Track `expandedDiscountItemId: string | null` in local component state (not in Z
 
 **How:**  
 When the user changes `discountType` or `discountValue` in the item's discount section:
+
 1. Call `setItemDiscount(clientDraftId, productId, type, value)` on the Zustand store.
 2. The cart re-renders because the store state changed.
 3. Use `calculateDiscounts()` from `lib/utils/discount-calculator.ts` to recompute the entire cart and update the bill summary.
 
 **Clamping behavior (applied in the UI, before calling the store action):**
+
 - If `discountType = FLAT` and entered value > `(item.unitPrice × item.quantity)`: clamp to `item.unitPrice × item.quantity` and show an inline message: "Discount capped at item total."
 - If `discountType = PERCENTAGE` and entered value > 100: clamp to 100.
 - If entered value is negative: clamp to 0.
@@ -784,15 +800,18 @@ If the user enters 100 as a percentage discount, do not show any confirmation. T
 Modify the existing bill summary component (e.g. `features/billing/billing-summary.tsx` or equivalent).
 
 **Collapsed state (no bill discount active):**
+
 - Show "Add bill discount" link/button below the subtotal line.
 
 **Expanded state:**
+
 - Show a discount type selector: "%" and "₹".
 - Show a numeric input.
 - Show a "Remove" link to clear it.
 
 **Bill summary breakdown when discounts are present:**  
 The summary sidebar must show these lines in this order (lines with zero values are hidden):
+
 ```
 Subtotal:                    ₹300.00    ← SUM(discountedSubtotal) — after item discounts
 Item discounts:              −₹30.00    ← only shown if any item has a discount
@@ -831,6 +850,7 @@ If no discounts and GST is off: only `Subtotal` and `Grand Total` lines are show
 Modify the invoice finalization hook/function (the `useInvoiceCreation` hook from MVP 1) to include discount data from the active draft.
 
 **Updated payload:**
+
 ```typescript
 {
   clientGeneratedId: string,
@@ -882,6 +902,7 @@ The server response includes server-computed discount amounts. Show the invoice 
 Modify the invoice list row component.
 
 **For REFUND invoice rows:**
+
 - Show a "Refund" badge in a distinct color (e.g. coral/red-100 with red text, or amber — match the project's existing design system).
 - Display the `grandTotal` as a negative value with a minus sign: "−₹450.00".
 - Color the grand total text in red or coral (distinct from the normal black/dark text).
@@ -906,6 +927,7 @@ Modify the invoice list row component.
 The invoice history page currently uses URL `searchParams` for filters (from MVP 1). Add a new `invoiceType` URL parameter.
 
 **Filter UI:** A segmented control or dropdown with three options:
+
 - "All" (default — no filter)
 - "Sales only"
 - "Refunds only"
@@ -946,12 +968,12 @@ The invoice detail page already fetches the full invoice object. With the US-02 
 
 **Eligibility logic (compute on the client from the fetched invoice data):**
 
-| Condition | Button State | Tooltip / Message |
-|---|---|---|
-| `invoiceType = REFUND` | Hidden entirely | N/A |
-| `invoiceType = SALE` and all items fully refunded | Disabled | "All items have already been returned." |
-| `invoiceType = SALE` and sync-pending | Disabled | "This invoice is still syncing. Wait for sync to complete." |
-| `invoiceType = SALE` and eligible | Enabled | None |
+| Condition                                         | Button State    | Tooltip / Message                                           |
+| ------------------------------------------------- | --------------- | ----------------------------------------------------------- |
+| `invoiceType = REFUND`                            | Hidden entirely | N/A                                                         |
+| `invoiceType = SALE` and all items fully refunded | Disabled        | "All items have already been returned."                     |
+| `invoiceType = SALE` and sync-pending             | Disabled        | "This invoice is still syncing. Wait for sync to complete." |
+| `invoiceType = SALE` and eligible                 | Enabled         | None                                                        |
 
 **How to detect "all items fully refunded":**  
 For each item in the original invoice, compute `previouslyRefundedQty` by summing quantities from the `refunds` array for that `productId`. If `previouslyRefundedQty >= originalQty` for every item, all items are fully refunded.
@@ -981,11 +1003,13 @@ If the invoice object has no `invoiceNumber` (null or empty string), it is sync-
 Update the invoice detail item table and summary section.
 
 **Item table changes (for each line item):**
+
 - If `itemDiscountType !== 'NONE'`: show the original unit price, then below it show the discount (e.g. "−₹20 discount" or "−10% discount"), then show the discounted unit price.
 - The line total shown is the post-discount line total (already stored correctly on the invoice).
 - If `itemDiscountType === 'NONE'`: show item row exactly as MVP 1/2.
 
 **Summary section changes:**
+
 - Show the same multi-line breakdown as the billing screen summary (US-07 T-07.1.3):
   - Subtotal (after item discounts)
   - Item discounts total (only if any item had a discount)
@@ -1014,6 +1038,7 @@ Update the invoice detail item table and summary section.
 The invoice detail response now includes a `refunds` array (from US-02 T-02.2). If `refunds.length > 0`, render a "Returns" section below the items and summary.
 
 **"Returns" section layout:**
+
 - Section title: "Returns"
 - For each refund in `invoice.refunds`:
   - Refund invoice number (clickable link → navigates to that refund invoice's detail page at `/invoices/:refundId`)
@@ -1050,9 +1075,11 @@ The invoice detail response now includes a `refunds` array (from US-02 T-02.2). 
 **This page is a server component.** It fetches the original invoice and all existing refunds (from `GET /tenants/:tenantId/invoices/:id`) and passes data to a client component for interaction.
 
 **Data needed from the server fetch:**
+
 - Original invoice: `invoiceNumber`, `createdAt`, `items`, `refunds` array (to compute already-refunded quantities).
 
 **Page guards (server-side):**
+
 - If the invoice is not found: redirect to `/invoices`.
 - If the invoice is `invoiceType = REFUND`: redirect to `/invoices/:id` (cannot refund a refund).
 - If the invoice is soft-deleted: redirect to `/invoices/:id`.
@@ -1073,6 +1100,7 @@ The invoice detail response now includes a `refunds` array (from US-02 T-02.2). 
 **Component file:** `features/invoices/refund-selection-form.tsx` (client component: `'use client'`)
 
 **Layout:**
+
 - Header: "Process Return" with the original invoice number and date for context.
 - A table or list of items, each row showing:
   - Product name (from snapshot on original invoice)
@@ -1091,10 +1119,11 @@ The invoice detail response now includes a `refunds` array (from US-02 T-02.2). 
 - "Cancel" button — navigates back to `/invoices/:id`.
 
 **State management (local React state, not Zustand — refund form state is ephemeral):**
+
 ```typescript
-const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>(
-  Object.fromEntries(items.map(item => [item.productId, 0]))
-);
+const [returnQuantities, setReturnQuantities] = useState<
+  Record<string, number>
+>(Object.fromEntries(items.map((item) => [item.productId, 0])));
 const [refundReason, setRefundReason] = useState('');
 const [submitting, setSubmitting] = useState(false);
 const [error, setError] = useState('');
@@ -1129,15 +1158,16 @@ const [error, setError] = useState('');
 This is a client-side API call (not a server action), because it requires a two-step UI (form → confirm) and the response must navigate to the new invoice. Use `clientAxios`.
 
 **Submission logic:**
+
 ```typescript
 const handleSubmit = async () => {
   setSubmitting(true);
   setError('');
-  
+
   const itemsToRefund = Object.entries(returnQuantities)
     .filter(([_, qty]) => qty > 0)
     .map(([productId, quantity]) => ({ productId, quantity }));
-  
+
   try {
     const { data } = await clientAxios.post(
       `/tenants/${tenantId}/invoices/${invoice._id}/refund`,
@@ -1145,7 +1175,7 @@ const handleSubmit = async () => {
         clientGeneratedId: uuidv4(), // generate fresh UUID per submission attempt
         refundReason: refundReason.trim() || null,
         items: itemsToRefund,
-      }
+      },
     );
     router.push(`/invoices/${data._id}`);
   } catch (err: any) {
@@ -1156,6 +1186,7 @@ const handleSubmit = async () => {
 ```
 
 **Error handling:**
+
 - HTTP 400 (quantity violation): show "You can return at most {N} units of {product}." per the error details.
 - HTTP 409 (sync-pending): show "This invoice has not finished syncing. Please wait."
 - Network error: show "Something went wrong. Please check your connection and try again."
@@ -1270,14 +1301,14 @@ US-05 (Zustand Store discount state — FE) ← needs US-01 T-01.3 + US-03 T-03.
 
 **Recommended build order:**
 
-| Phase | Stories | Who |
-|---|---|---|
-| 1 | US-01 (schema), US-03 (calculator) | BE + FE in parallel |
-| 2 | US-02 (refund API), US-04 (invoice API update) | BE |
-| 2 | US-05 (store types + actions) | FE — parallel with phase 2 BE |
-| 3 | US-06 (item discount UI), US-08 (history filters) | FE |
-| 4 | US-07 (bill discount UI), US-09 (invoice detail refund button) | FE |
-| 5 | US-10 (refund selection screen), US-11 (refund invoice detail) | FE |
+| Phase | Stories                                                        | Who                           |
+| ----- | -------------------------------------------------------------- | ----------------------------- |
+| 1     | US-01 (schema), US-03 (calculator)                             | BE + FE in parallel           |
+| 2     | US-02 (refund API), US-04 (invoice API update)                 | BE                            |
+| 2     | US-05 (store types + actions)                                  | FE — parallel with phase 2 BE |
+| 3     | US-06 (item discount UI), US-08 (history filters)              | FE                            |
+| 4     | US-07 (bill discount UI), US-09 (invoice detail refund button) | FE                            |
+| 5     | US-10 (refund selection screen), US-11 (refund invoice detail) | FE                            |
 
 ---
 
@@ -1286,6 +1317,7 @@ US-05 (Zustand Store discount state — FE) ← needs US-01 T-01.3 + US-03 T-03.
 Before MVP 3 is considered complete, all of the following must be true:
 
 ### Discounts
+
 - [ ] Item-level percentage and flat discounts work in the billing screen
 - [ ] Item-level discounts persist across tab switches and page refreshes (Zustand + IndexedDB)
 - [ ] Bill-level percentage and flat discounts work in the billing screen
@@ -1299,6 +1331,7 @@ Before MVP 3 is considered complete, all of the following must be true:
 - [ ] Discount fields in draft sync payload — discounts restored on new device login
 
 ### Refunds
+
 - [ ] "Process Refund" button appears on SALE invoices only
 - [ ] Button is correctly disabled for: REFUND invoices (hidden), sync-pending, fully returned
 - [ ] Refund selection screen shows all items with correct max returnable quantities
@@ -1314,6 +1347,7 @@ Before MVP 3 is considered complete, all of the following must be true:
 - [ ] Idempotency: submitting the same refund twice creates only one refund invoice
 
 ### Regression
+
 - [ ] All MVP 1 and MVP 2 features continue to work
 - [ ] Invoice creation without discounts produces correct totals (backward compatible)
 - [ ] Multi-tab billing continues to work with discounts (discounts are per-tab)
@@ -1321,5 +1355,5 @@ Before MVP 3 is considered complete, all of the following must be true:
 
 ---
 
-*End of MVP 3 User Story Breakdown*  
-*All PRD requirements are covered. Nothing is left undefined.*
+_End of MVP 3 User Story Breakdown_  
+_All PRD requirements are covered. Nothing is left undefined._

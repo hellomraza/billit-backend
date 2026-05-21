@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
-import { InvoiceSchema, DiscountType, InvoiceType } from '../src/modules/invoice/invoice.schema';
+import {
+  DiscountType,
+  InvoiceType,
+} from '../src/modules/invoice/invoice.schema';
 
 /**
  * Migration: Add refund and discount fields to Invoice schema
@@ -8,7 +11,7 @@ import { InvoiceSchema, DiscountType, InvoiceType } from '../src/modules/invoice
  *   - Sets invoiceType = SALE for all existing invoices
  *   - Sets originalInvoiceId = null for all existing invoices
  *   - Sets refundReason = null for all existing invoices
- * 
+ *
  * Phase 2 (Discount fields):
  *   - Sets billDiscountType = NONE, billDiscountValue = 0, billDiscountAmount = 0
  *   - Adds discount fields to each item in the items array
@@ -26,10 +29,14 @@ async function runMigration() {
 
     const invoiceCollection = db.collection('invoices');
 
-    console.log('Starting migration: Add refund and discount fields to Invoice...\n');
+    console.log(
+      'Starting migration: Add refund and discount fields to Invoice...\n',
+    );
 
     // Phase 1: Add refund fields and bill discount fields
-    console.log('Phase 1: Adding refund and bill discount fields to root level...');
+    console.log(
+      'Phase 1: Adding refund and bill discount fields to root level...',
+    );
     const result1 = await invoiceCollection.updateMany(
       {}, // Match all documents
       {
@@ -41,7 +48,7 @@ async function runMigration() {
           billDiscountValue: 0,
           billDiscountAmount: 0,
         },
-      }
+      },
     );
 
     console.log(`✓ Phase 1 completed!`);
@@ -50,7 +57,7 @@ async function runMigration() {
 
     // Phase 2: Add item-level discount fields using aggregation pipeline
     console.log('\nPhase 2: Adding item-level discount fields to all items...');
-    
+
     const result2 = await invoiceCollection.updateMany(
       {}, // Match all documents
       [
@@ -70,20 +77,20 @@ async function runMigration() {
                   lineTotal: '$$item.lineTotal',
                   overridden: { $ifNull: ['$$item.overridden', false] },
                   itemDiscountType: {
-                    $ifNull: ['$$item.itemDiscountType', DiscountType.NONE]
+                    $ifNull: ['$$item.itemDiscountType', DiscountType.NONE],
                   },
                   itemDiscountValue: {
-                    $ifNull: ['$$item.itemDiscountValue', 0]
+                    $ifNull: ['$$item.itemDiscountValue', 0],
                   },
                   itemDiscountAmount: {
-                    $ifNull: ['$$item.itemDiscountAmount', 0]
+                    $ifNull: ['$$item.itemDiscountAmount', 0],
                   },
                 },
               },
             },
           },
         },
-      ]
+      ],
     );
 
     console.log(`✓ Phase 2 completed!`);
@@ -98,22 +105,20 @@ async function runMigration() {
       console.log('  (No invoices found in database)');
     } else {
       sampleInvoices.forEach((invoice: any, index: number) => {
+        console.log(`\n  Invoice ${index + 1}: ${invoice.invoiceNumber}`);
         console.log(
-          `\n  Invoice ${index + 1}: ${invoice.invoiceNumber}`
+          `    Refund fields: invoiceType=${invoice.invoiceType}, originalInvoiceId=${invoice.originalInvoiceId}, refundReason=${invoice.refundReason}`,
         );
         console.log(
-          `    Refund fields: invoiceType=${invoice.invoiceType}, originalInvoiceId=${invoice.originalInvoiceId}, refundReason=${invoice.refundReason}`
-        );
-        console.log(
-          `    Bill discount: type=${invoice.billDiscountType}, value=${invoice.billDiscountValue}, amount=${invoice.billDiscountAmount}`
+          `    Bill discount: type=${invoice.billDiscountType}, value=${invoice.billDiscountValue}, amount=${invoice.billDiscountAmount}`,
         );
         console.log(`    Items: ${invoice.items?.length || 0} total`);
-        
+
         if (invoice.items && invoice.items.length > 0) {
           // Show first 3 items
           invoice.items.slice(0, 3).forEach((item: any, itemIndex: number) => {
             console.log(
-              `      Item ${itemIndex + 1} (${item.productName}): type=${item.itemDiscountType}, value=${item.itemDiscountValue}, amount=${item.itemDiscountAmount}`
+              `      Item ${itemIndex + 1} (${item.productName}): type=${item.itemDiscountType}, value=${item.itemDiscountValue}, amount=${item.itemDiscountAmount}`,
             );
           });
           if (invoice.items.length > 3) {
@@ -138,7 +143,9 @@ async function runMigration() {
     const noneDiscountCount = await invoiceCollection.countDocuments({
       billDiscountType: DiscountType.NONE,
     });
-    console.log(`✓ Query test: Found ${noneDiscountCount} invoices with NONE bill discount`);
+    console.log(
+      `✓ Query test: Found ${noneDiscountCount} invoices with NONE bill discount`,
+    );
 
     // Verify no invoices are missing item discount fields
     console.log('\nVerifying item discount fields completeness...');
@@ -150,15 +157,23 @@ async function runMigration() {
       if (invoice.items && Array.isArray(invoice.items)) {
         for (const item of invoice.items) {
           totalItems++;
-          if (!item.itemDiscountType || item.itemDiscountValue === undefined || item.itemDiscountAmount === undefined) {
+          if (
+            !item.itemDiscountType ||
+            item.itemDiscountValue === undefined ||
+            item.itemDiscountAmount === undefined
+          ) {
             missingFields++;
           }
         }
       }
     }
 
-    console.log(`✓ Checked ${totalItems} items across ${invoicesToCheck.length} invoices`);
-    console.log(`  - Items with complete discount fields: ${totalItems - missingFields} / ${totalItems}`);
+    console.log(
+      `✓ Checked ${totalItems} items across ${invoicesToCheck.length} invoices`,
+    );
+    console.log(
+      `  - Items with complete discount fields: ${totalItems - missingFields} / ${totalItems}`,
+    );
 
     await mongoose.disconnect();
     console.log('\n✓ Migration completed and database disconnected');
