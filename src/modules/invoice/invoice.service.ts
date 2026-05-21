@@ -1,7 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, QueryFilter, Types } from 'mongoose';
 import { DatabaseService } from '../../database/database.service';
+import { calculateDiscounts } from '../../utils/discount-calculator';
 import { DailyCounterService } from '../daily-counter/daily-counter.service';
 import { DeficitRecord } from '../deficit/deficit.schema';
 import { DeficitService } from '../deficit/deficit.service';
@@ -13,7 +19,13 @@ import { StockService } from '../stock/stock.service';
 import { TenantService } from '../tenant/tenant.service';
 import { CreateInvoiceDto } from './dto/invoice-create.dto';
 import { CreateRefundDto } from './dto/invoice-refund.dto';
-import { Invoice, InvoiceItem, PaymentMethod, InvoiceType, DiscountType } from './invoice.schema';
+import {
+  DiscountType,
+  Invoice,
+  InvoiceItem,
+  InvoiceType,
+  PaymentMethod,
+} from './invoice.schema';
 
 interface InsufficientStockDetail {
   productId: string;
@@ -181,16 +193,32 @@ export class InvoiceService {
           abbreviationsLocked = abbreviationsLocked || true;
         }
 
-        // Calculate totals and prepare items
+        // Calculate totals and prepare items using discount calculator
         const items: InvoiceItem[] = [];
-        let subtotal = 0;
-        let totalGstAmount = 0;
+        const gstEnabled = createInvoiceDto.gstEnabled ?? tenant.gstEnabled;
 
-        for (const item of createInvoiceDto.items) {
-          const lineSubtotal = item.quantity * item.unitPrice;
-          const gstAmount =
-            Math.round(lineSubtotal * (item.gstRate / 100) * 100) / 100;
-          const lineTotal = lineSubtotal + gstAmount;
+        const calcInput = createInvoiceDto.items.map((it) => ({
+          unitPrice: Number(it.unitPrice),
+          quantity: Number(it.quantity),
+          gstRate: Number(it.gstRate),
+          itemDiscountType: (it as any).itemDiscountType || 'NONE',
+          itemDiscountValue: (it as any).itemDiscountValue || 0,
+        }));
+
+        const calc = calculateDiscounts(
+          calcInput,
+          (createInvoiceDto as any).billDiscountType || 'NONE',
+          (createInvoiceDto as any).billDiscountValue || 0,
+          gstEnabled,
+        );
+
+        let subtotal = calc.subtotal;
+        let totalGstAmount = calc.totalGstAmount;
+        const grandTotal = calc.grandTotal;
+
+        for (let idx = 0; idx < createInvoiceDto.items.length; idx++) {
+          const item = createInvoiceDto.items[idx];
+          const r = calc.items[idx];
 
           items.push({
             productId: item.productId,
@@ -198,16 +226,15 @@ export class InvoiceService {
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             gstRate: item.gstRate,
-            gstAmount,
-            lineTotal,
+            gstAmount: r.gstAmount,
+            lineTotal: r.lineTotal,
             overridden: item.override ?? false,
+            itemDiscountType:
+              (item as any).itemDiscountType || DiscountType.NONE,
+            itemDiscountValue: (item as any).itemDiscountValue || 0,
+            itemDiscountAmount: r.itemDiscountAmount,
           });
-
-          subtotal += lineSubtotal;
-          totalGstAmount += gstAmount;
         }
-
-        const grandTotal = subtotal + totalGstAmount;
 
         // Get invoice number from Daily Counter
         // IMPORTANT: Pass session to ensure counter increment is atomic within transaction
@@ -228,6 +255,10 @@ export class InvoiceService {
           subtotal,
           totalGstAmount,
           grandTotal,
+          billDiscountType:
+            (createInvoiceDto as any).billDiscountType || DiscountType.NONE,
+          billDiscountValue: (createInvoiceDto as any).billDiscountValue || 0,
+          billDiscountAmount: (calc as any).billDiscountAmount || 0,
           paymentMethod: createInvoiceDto.paymentMethod,
           customerName: createInvoiceDto.customerName,
           customerPhone: createInvoiceDto.customerPhone,
@@ -457,23 +488,38 @@ export class InvoiceService {
     return invoice;
   }
 
-  async findRefundsByOriginalInvoice(tenantId: string, originalInvoiceId: string): Promise<any[]> {
-    return this.invoiceModel.find({
-      tenantId: new Types.ObjectId(tenantId),
-      originalInvoiceId: new Types.ObjectId(originalInvoiceId),
-      isDeleted: false,
-      invoiceType: InvoiceType.REFUND,
-    }).lean();
+  async findRefundsByOriginalInvoice(
+    tenantId: string,
+    originalInvoiceId: string,
+  ): Promise<any[]> {
+    return this.invoiceModel
+      .find({
+        tenantId: new Types.ObjectId(tenantId),
+        originalInvoiceId: new Types.ObjectId(originalInvoiceId),
+        isDeleted: false,
+        invoiceType: InvoiceType.REFUND,
+      })
+      .lean();
   }
 
-  async findOriginalInvoiceSummary(tenantId: string, originalInvoiceId: string) {
-    return this.invoiceModel.findOne({
-      _id: new Types.ObjectId(originalInvoiceId),
-      tenantId: new Types.ObjectId(tenantId),
-    }).select('_id invoiceNumber createdAt').lean();
+  async findOriginalInvoiceSummary(
+    tenantId: string,
+    originalInvoiceId: string,
+  ) {
+    return this.invoiceModel
+      .findOne({
+        _id: new Types.ObjectId(originalInvoiceId),
+        tenantId: new Types.ObjectId(tenantId),
+      })
+      .select('_id invoiceNumber createdAt')
+      .lean();
   }
 
-  async createRefund(tenantId: string, originalInvoiceId: string, dto: CreateRefundDto): Promise<Invoice> {
+  async createRefund(
+    tenantId: string,
+    originalInvoiceId: string,
+    dto: CreateRefundDto,
+  ): Promise<Invoice> {
     const existing = await this.invoiceModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
       clientGeneratedId: dto.clientGeneratedId,
@@ -490,16 +536,20 @@ export class InvoiceService {
     });
 
     if (!originalInvoice) {
-      throw new BadRequestException('Original SALE invoice not found or is deleted.');
+      throw new BadRequestException(
+        'Original SALE invoice not found or is deleted.',
+      );
     }
 
     if (!originalInvoice.invoiceNumber) {
       throw new ConflictException('This invoice has not finished syncing.');
     }
 
-    const requestedItems = dto.items.filter(item => item.quantity > 0);
+    const requestedItems = dto.items.filter((item) => item.quantity > 0);
     if (requestedItems.length === 0) {
-      throw new BadRequestException('Refund must contain at least one item with quantity > 0');
+      throw new BadRequestException(
+        'Refund must contain at least one item with quantity > 0',
+      );
     }
 
     const violations = [];
@@ -513,14 +563,20 @@ export class InvoiceService {
     });
 
     for (const reqItem of requestedItems) {
-      const originalItem = originalInvoice.items.find(i => i.productId.toString() === reqItem.productId.toString());
+      const originalItem = originalInvoice.items.find(
+        (i) => i.productId.toString() === reqItem.productId.toString(),
+      );
       if (!originalItem) {
-        throw new BadRequestException(`Product ${reqItem.productId} not found in original invoice`);
+        throw new BadRequestException(
+          `Product ${reqItem.productId} not found in original invoice`,
+        );
       }
 
       let previouslyRefundedQty = 0;
       for (const refund of existingRefunds) {
-        const refundedItem = refund.items.find((i: any) => i.productId.toString() === reqItem.productId.toString());
+        const refundedItem = refund.items.find(
+          (i: any) => i.productId.toString() === reqItem.productId.toString(),
+        );
         if (refundedItem) {
           previouslyRefundedQty += Math.abs(refundedItem.quantity);
         }
@@ -535,11 +591,15 @@ export class InvoiceService {
           requestedQty: reqItem.quantity,
         });
       } else {
-        const originalDiscountAmount = originalItem.itemDiscountAmount ? Number(originalItem.itemDiscountAmount.toString()) : 0;
+        const originalDiscountAmount = originalItem.itemDiscountAmount
+          ? Number(originalItem.itemDiscountAmount.toString())
+          : 0;
         const originalUnitPrice = Number(originalItem.unitPrice.toString());
-        const discountedUnitSubtotal = (originalUnitPrice * originalItem.quantity) - originalDiscountAmount;
-        const effectiveUnitPrice = discountedUnitSubtotal / originalItem.quantity;
-        
+        const discountedUnitSubtotal =
+          originalUnitPrice * originalItem.quantity - originalDiscountAmount;
+        const effectiveUnitPrice =
+          discountedUnitSubtotal / originalItem.quantity;
+
         validItems.push({
           ...originalItem,
           effectiveUnitPrice,
@@ -556,110 +616,121 @@ export class InvoiceService {
       });
     }
 
-    return this.databaseService.executeInTransaction(async (session: ClientSession) => {
-      const existingTx = await this.invoiceModel.findOne({
-        tenantId: new Types.ObjectId(tenantId),
-        clientGeneratedId: dto.clientGeneratedId,
-      }).session(session);
-      if (existingTx) return existingTx;
+    return this.databaseService.executeInTransaction(
+      async (session: ClientSession) => {
+        const existingTx = await this.invoiceModel
+          .findOne({
+            tenantId: new Types.ObjectId(tenantId),
+            clientGeneratedId: dto.clientGeneratedId,
+          })
+          .session(session);
+        if (existingTx) return existingTx;
 
-      const refundId = new Types.ObjectId();
-      const items: InvoiceItem[] = [];
-      let subtotal = 0;
-      let totalGstAmount = 0;
+        const refundId = new Types.ObjectId();
+        const items: InvoiceItem[] = [];
+        let subtotal = 0;
+        let totalGstAmount = 0;
 
-      for (const vItem of validItems) {
-        const currentStock = await this.stockService.findByProductAndOutlet(
-          tenantId,
-          vItem.productId.toString(),
+        for (const vItem of validItems) {
+          const currentStock = await this.stockService.findByProductAndOutlet(
+            tenantId,
+            vItem.productId.toString(),
+            originalInvoice.outletId.toString(),
+            session,
+          );
+          const currentQty = currentStock?.quantity || 0;
+          const newStock = currentQty + vItem.returnQuantity;
+
+          await this.stockService.incrementStock(
+            tenantId,
+            vItem.productId.toString(),
+            originalInvoice.outletId.toString(),
+            vItem.returnQuantity,
+            session,
+          );
+
+          await this.stockAuditLogService.create(
+            tenantId,
+            vItem.productId.toString(),
+            originalInvoice.outletId.toString(),
+            currentQty,
+            newStock,
+            ChangeType.REFUND,
+            refundId,
+            session,
+          );
+
+          const gstAmount = -(
+            vItem.effectiveUnitPrice *
+            vItem.returnQuantity *
+            (vItem.gstRate / 100)
+          );
+          const roundedGstAmount = Math.round(gstAmount * 100) / 100;
+          const lineTotal = -(
+            vItem.effectiveUnitPrice * vItem.returnQuantity +
+            Math.abs(roundedGstAmount)
+          );
+
+          items.push({
+            productId: vItem.productId,
+            productName: vItem.productName,
+            quantity: vItem.returnQuantity,
+            unitPrice: vItem.effectiveUnitPrice,
+            gstRate: vItem.gstRate,
+            gstAmount: roundedGstAmount,
+            lineTotal: Math.round(lineTotal * 100) / 100,
+            overridden: false,
+            itemDiscountType: DiscountType.NONE,
+            itemDiscountValue: 0,
+            itemDiscountAmount: 0,
+          });
+
+          subtotal += -(vItem.effectiveUnitPrice * vItem.returnQuantity);
+          totalGstAmount += roundedGstAmount;
+        }
+
+        subtotal = Math.round(subtotal * 100) / 100;
+        totalGstAmount = Math.round(totalGstAmount * 100) / 100;
+        const grandTotal = Math.round((subtotal + totalGstAmount) * 100) / 100;
+
+        const invoiceNumber = await this.dailyCounterService.incrementAndGet(
           originalInvoice.outletId.toString(),
+          new Types.ObjectId(tenantId),
+          originalInvoice.outletAbbr,
           session,
         );
-        const currentQty = currentStock?.quantity || 0;
-        const newStock = currentQty + vItem.returnQuantity;
 
-        await this.stockService.incrementStock(
-          tenantId,
-          vItem.productId.toString(),
-          originalInvoice.outletId.toString(),
-          vItem.returnQuantity,
-          session,
-        );
-
-        await this.stockAuditLogService.create(
-          tenantId,
-          vItem.productId.toString(),
-          originalInvoice.outletId.toString(),
-          currentQty,
-          newStock,
-          ChangeType.REFUND,
-          refundId,
-          session,
-        );
-
-        const gstAmount = -(vItem.effectiveUnitPrice * vItem.returnQuantity * (vItem.gstRate / 100));
-        const roundedGstAmount = Math.round(gstAmount * 100) / 100;
-        const lineTotal = -(vItem.effectiveUnitPrice * vItem.returnQuantity + Math.abs(roundedGstAmount));
-
-        items.push({
-          productId: vItem.productId,
-          productName: vItem.productName,
-          quantity: vItem.returnQuantity,
-          unitPrice: vItem.effectiveUnitPrice,
-          gstRate: vItem.gstRate,
-          gstAmount: roundedGstAmount,
-          lineTotal: Math.round(lineTotal * 100) / 100,
-          overridden: false,
-          itemDiscountType: DiscountType.NONE,
-          itemDiscountValue: 0,
-          itemDiscountAmount: 0,
+        const refundInvoice = new this.invoiceModel({
+          _id: refundId,
+          invoiceType: InvoiceType.REFUND,
+          originalInvoiceId: originalInvoice._id,
+          tenantId: originalInvoice.tenantId,
+          outletId: originalInvoice.outletId,
+          paymentMethod: originalInvoice.paymentMethod,
+          customerName: originalInvoice.customerName,
+          customerPhone: originalInvoice.customerPhone,
+          refundReason: dto.refundReason || null,
+          invoiceNumber,
+          clientGeneratedId: dto.clientGeneratedId,
+          billDiscountType: DiscountType.NONE,
+          billDiscountValue: 0,
+          billDiscountAmount: 0,
+          items,
+          subtotal,
+          totalGstAmount,
+          grandTotal,
+          gstEnabled: originalInvoice.gstEnabled,
+          tenantGstNumber: originalInvoice.tenantGstNumber,
+          businessName: originalInvoice.businessName,
+          businessAbbr: originalInvoice.businessAbbr,
+          outletName: originalInvoice.outletName,
+          outletAbbr: originalInvoice.outletAbbr,
+          abbreviationsLocked: originalInvoice.abbreviationsLocked,
+          isDeleted: false,
         });
 
-        subtotal += -(vItem.effectiveUnitPrice * vItem.returnQuantity);
-        totalGstAmount += roundedGstAmount;
-      }
-
-      subtotal = Math.round(subtotal * 100) / 100;
-      totalGstAmount = Math.round(totalGstAmount * 100) / 100;
-      const grandTotal = Math.round((subtotal + totalGstAmount) * 100) / 100;
-
-      const invoiceNumber = await this.dailyCounterService.incrementAndGet(
-        originalInvoice.outletId.toString(),
-        new Types.ObjectId(tenantId),
-        originalInvoice.outletAbbr,
-        session,
-      );
-
-      const refundInvoice = new this.invoiceModel({
-        _id: refundId,
-        invoiceType: InvoiceType.REFUND,
-        originalInvoiceId: originalInvoice._id,
-        tenantId: originalInvoice.tenantId,
-        outletId: originalInvoice.outletId,
-        paymentMethod: originalInvoice.paymentMethod,
-        customerName: originalInvoice.customerName,
-        customerPhone: originalInvoice.customerPhone,
-        refundReason: dto.refundReason || null,
-        invoiceNumber,
-        clientGeneratedId: dto.clientGeneratedId,
-        billDiscountType: DiscountType.NONE,
-        billDiscountValue: 0,
-        billDiscountAmount: 0,
-        items,
-        subtotal,
-        totalGstAmount,
-        grandTotal,
-        gstEnabled: originalInvoice.gstEnabled,
-        tenantGstNumber: originalInvoice.tenantGstNumber,
-        businessName: originalInvoice.businessName,
-        businessAbbr: originalInvoice.businessAbbr,
-        outletName: originalInvoice.outletName,
-        outletAbbr: originalInvoice.outletAbbr,
-        abbreviationsLocked: originalInvoice.abbreviationsLocked,
-        isDeleted: false,
-      });
-
-      return refundInvoice.save({ session });
-    });
+        return refundInvoice.save({ session });
+      },
+    );
   }
 }

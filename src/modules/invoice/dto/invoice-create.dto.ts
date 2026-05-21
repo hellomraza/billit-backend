@@ -75,6 +75,26 @@ export class InvoiceItemDto {
   @IsOptional()
   @IsBoolean()
   override?: boolean;
+
+  @ApiProperty({
+    description: 'Item-level discount type',
+    example: 'NONE',
+    required: false,
+    enum: ['NONE', 'PERCENTAGE', 'FLAT'],
+  })
+  @IsOptional()
+  @IsString()
+  itemDiscountType?: string;
+
+  @ApiProperty({
+    description: 'Item-level discount value (percentage or flat)',
+    example: 0,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  itemDiscountValue?: number;
 }
 
 export class CreateInvoiceDto {
@@ -116,6 +136,13 @@ export class CreateInvoiceDto {
         unitPrice: { type: 'number', example: 50000 },
         gstRate: { type: 'number', example: 18, enum: [0, 5, 12, 18, 28] },
         override: { type: 'boolean', example: false },
+        itemDiscountType: {
+          type: 'string',
+          example: 'NONE',
+          enum: ['NONE', 'PERCENTAGE', 'FLAT'],
+          required: false,
+        },
+        itemDiscountValue: { type: 'number', example: 0, required: false },
       },
     },
     minItems: 1,
@@ -160,6 +187,26 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsBoolean()
   gstEnabled?: boolean;
+
+  @ApiProperty({
+    description: 'Bill-level discount type',
+    example: 'NONE',
+    required: false,
+    enum: ['NONE', 'PERCENTAGE', 'FLAT'],
+  })
+  @IsOptional()
+  @IsString()
+  billDiscountType?: string;
+
+  @ApiProperty({
+    description: 'Bill-level discount value (percentage or flat)',
+    example: 0,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  billDiscountValue?: number;
 }
 
 // Response DTOs
@@ -206,6 +253,26 @@ export class InvoiceItemResponseDto {
     example: 59000,
   })
   lineTotal: number;
+  @ApiProperty({
+    description: 'Item-level discount type',
+    example: 'NONE',
+    required: false,
+  })
+  itemDiscountType?: string;
+
+  @ApiProperty({
+    description: 'Item-level discount value',
+    example: 0,
+    required: false,
+  })
+  itemDiscountValue?: number;
+
+  @ApiProperty({
+    description: 'Item-level discount amount in ₹',
+    example: 0,
+    required: false,
+  })
+  itemDiscountAmount?: number;
 }
 
 export class CreateInvoiceResponseDto {
@@ -294,6 +361,26 @@ export class CreateInvoiceResponseDto {
     example: false,
   })
   abbreviationsLocked: boolean;
+  @ApiProperty({
+    description: 'Bill-level discount type',
+    example: 'NONE',
+    required: false,
+  })
+  billDiscountType?: string;
+
+  @ApiProperty({
+    description: 'Bill-level discount value',
+    example: 0,
+    required: false,
+  })
+  billDiscountValue?: number;
+
+  @ApiProperty({
+    description: 'Bill-level discount amount in ₹',
+    example: 0,
+    required: false,
+  })
+  billDiscountAmount?: number;
 }
 
 export class InsufficientStockItemDto {

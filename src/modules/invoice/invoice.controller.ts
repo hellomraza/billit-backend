@@ -492,6 +492,9 @@ export class InvoiceController {
         gstRate: item.gstRate,
         gstAmount: this.parseDecimal(item.gstAmount),
         lineTotal: this.parseDecimal(item.lineTotal),
+        itemDiscountType: item.itemDiscountType,
+        itemDiscountValue: this.parseDecimal(item.itemDiscountValue),
+        itemDiscountAmount: this.parseDecimal(item.itemDiscountAmount),
       })),
       gstEnabled: invoice.gstEnabled,
       subtotal: this.parseDecimal(invoice.subtotal),
@@ -509,6 +512,9 @@ export class InvoiceController {
         gstEnabled: invoice.gstEnabled,
       },
       abbreviationsLocked: invoice.abbreviationsLocked,
+      billDiscountType: invoice.billDiscountType,
+      billDiscountValue: this.parseDecimal(invoice.billDiscountValue),
+      billDiscountAmount: this.parseDecimal(invoice.billDiscountAmount),
     };
   }
 
@@ -559,10 +565,16 @@ export class InvoiceController {
         gstRate: item.gstRate,
         gstAmount: this.parseDecimal(item.gstAmount),
         lineTotal: this.parseDecimal(item.lineTotal),
+        itemDiscountType: item.itemDiscountType,
+        itemDiscountValue: this.parseDecimal(item.itemDiscountValue),
+        itemDiscountAmount: this.parseDecimal(item.itemDiscountAmount),
       })),
       subtotal: this.parseDecimal(invoice.subtotal),
       gstTotal: this.parseDecimal(invoice.totalGstAmount),
       grandTotal: this.parseDecimal(invoice.grandTotal),
+      billDiscountType: invoice.billDiscountType,
+      billDiscountValue: this.parseDecimal(invoice.billDiscountValue),
+      billDiscountAmount: this.parseDecimal(invoice.billDiscountAmount),
       deficitItems: invoice.items
         .filter((item: any) => item.overridden)
         .map((item: any) => ({
