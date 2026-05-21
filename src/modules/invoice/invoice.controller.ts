@@ -33,7 +33,7 @@ import {
   StockInsufficientResponseDto,
 } from './dto/invoice-create.dto';
 import { CreateRefundDto } from './dto/invoice-refund.dto';
-import { PaymentMethod, InvoiceType } from './invoice.schema';
+import { InvoiceType, PaymentMethod } from './invoice.schema';
 import { InvoiceService } from './invoice.service';
 
 @UseGuards(JwtAuthGuard, TenantValidationGuard)
@@ -320,6 +320,14 @@ export class InvoiceController {
     const parsedLimit = Math.min(parseInt(limit) || 20, 100);
     const parsedPage = Math.max(parseInt(page) || 1, 1);
 
+    // Normalize invoiceType: accept case-insensitive 'SALE', 'REFUND', or 'ALL'.
+    // Treat 'ALL' (or absent/invalid) as no filter.
+    let normalizedInvoiceType: string | undefined = undefined;
+    if (invoiceType) {
+      const up = invoiceType.toString().toUpperCase();
+      if (up === 'SALE' || up === 'REFUND') normalizedInvoiceType = up;
+    }
+
     const { data, total } = await this.invoiceService.findWithFilters(
       tenantId,
       {
@@ -337,7 +345,7 @@ export class InvoiceController {
               : undefined,
         outletId,
         productId,
-        invoiceType,
+        invoiceType: normalizedInvoiceType,
       },
     );
 
@@ -374,19 +382,31 @@ export class InvoiceController {
     @Param('tenantId') tenantId: string,
     @Param('invoiceId') invoiceId: string,
   ) {
-    const invoice: any = await this.invoiceService.findById(tenantId, invoiceId);
-    
+    const invoice: any = await this.invoiceService.findById(
+      tenantId,
+      invoiceId,
+    );
+
     if (invoice.invoiceType === InvoiceType.SALE) {
-      const refunds = await this.invoiceService.findRefundsByOriginalInvoice(tenantId, invoiceId);
-      invoice.refunds = refunds.map(r => ({
+      const refunds = await this.invoiceService.findRefundsByOriginalInvoice(
+        tenantId,
+        invoiceId,
+      );
+      invoice.refunds = refunds.map((r) => ({
         id: r._id.toString(),
         invoiceNumber: r.invoiceNumber,
         grandTotal: this.parseDecimal(r.grandTotal),
         createdAt: r.createdAt.toISOString(),
         itemCount: r.items.length,
       }));
-    } else if (invoice.invoiceType === InvoiceType.REFUND && invoice.originalInvoiceId) {
-      const original = await this.invoiceService.findOriginalInvoiceSummary(tenantId, invoice.originalInvoiceId.toString());
+    } else if (
+      invoice.invoiceType === InvoiceType.REFUND &&
+      invoice.originalInvoiceId
+    ) {
+      const original = await this.invoiceService.findOriginalInvoiceSummary(
+        tenantId,
+        invoice.originalInvoiceId.toString(),
+      );
       if (original) {
         invoice.originalInvoice = {
           id: original._id.toString(),
@@ -419,7 +439,11 @@ export class InvoiceController {
     @Param('invoiceId') invoiceId: string,
     @Body() createRefundDto: CreateRefundDto,
   ) {
-    const refund = await this.invoiceService.createRefund(tenantId, invoiceId, createRefundDto);
+    const refund = await this.invoiceService.createRefund(
+      tenantId,
+      invoiceId,
+      createRefundDto,
+    );
     return {
       statusCode: 201,
       message: 'Refund invoice created successfully',
