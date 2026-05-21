@@ -60,7 +60,7 @@ export class Draft {
   @Prop()
   updatedAt!: Date;
 
-  @Prop({ enum: DiscountType, default: DiscountType.NONE })
+  @Prop({ type: String, enum: DiscountType, default: DiscountType.NONE })
   billDiscountType?: DiscountType;
 
   @Prop({ type: 'Decimal128', default: 0 })
