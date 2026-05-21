@@ -9,6 +9,11 @@ export enum PaymentMethod {
   BANK_TRANSFER = 'BANK_TRANSFER',
 }
 
+export enum InvoiceType {
+  SALE = 'SALE',
+  REFUND = 'REFUND',
+}
+
 export interface InvoiceItem {
   productId: Types.ObjectId;
   productName: string;
@@ -85,6 +90,16 @@ export class Invoice {
   @Prop({ default: false })
   isDeleted: boolean;
 
+  // Refund tracking fields
+  @Prop({ enum: InvoiceType, default: InvoiceType.SALE, required: true })
+  invoiceType: InvoiceType;
+
+  @Prop({ type: Types.ObjectId, default: null, nullable: true })
+  originalInvoiceId: Types.ObjectId;
+
+  @Prop({ maxlength: 500, default: null, nullable: true })
+  refundReason: string;
+
   @Prop()
   createdAt: Date;
 
@@ -102,3 +117,4 @@ InvoiceSchema.index({ tenantId: 1, outletId: 1, createdAt: -1 });
 InvoiceSchema.index({ tenantId: 1, paymentMethod: 1 });
 InvoiceSchema.index({ tenantId: 1, gstEnabled: 1 });
 InvoiceSchema.index({ tenantId: 1, 'items.productId': 1 });
+InvoiceSchema.index({ originalInvoiceId: 1 });
