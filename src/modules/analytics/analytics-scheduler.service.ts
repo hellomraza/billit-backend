@@ -1,17 +1,21 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import * as cron from 'node-cron';
-import { AnalyticsComputeService, yesterdayIST } from './analytics-compute.service';
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+import {
+  AnalyticsComputeService,
+  yesterdayIST,
+} from './analytics-compute.service';
 
 /**
  * ST-01.3.6 — Nightly analytics job scheduler.
  *
- * Runs every day at 00:01 IST = 18:31 UTC (cron: "31 18 * * *").
+ * Uses @nestjs/schedule (@Cron decorator) instead of a manual cron setup.
  *
- * Also registers an hourly retry job that re-runs for dates that the nightly
- * job may have missed (failure handling per ST-01.3.5).
+ * Primary job  : runs at 00:01 IST = 18:31 UTC  →  cron "31 18 * * *"
+ * Hourly retry : runs every hour to re-process yesterday if the nightly
+ *                job had failed (ST-01.3.5 failure handling).
  */
 @Injectable()
-export class AnalyticsSchedulerService implements OnModuleInit {
+export class AnalyticsSchedulerService {
   private readonly logger = new Logger(AnalyticsSchedulerService.name);
 
   /** Track the last date the nightly job successfully completed */
@@ -21,78 +25,61 @@ export class AnalyticsSchedulerService implements OnModuleInit {
     private readonly analyticsComputeService: AnalyticsComputeService,
   ) {}
 
-  onModuleInit() {
-    this.registerNightlyJob();
-    this.registerHourlyRetryJob();
-    this.logger.log(
-      '[Scheduler] Analytics jobs registered. Nightly: 18:31 UTC (00:01 IST). Retry: every hour.',
-    );
-  }
-
   // ─────────────────────────────────────────────────────────────────────────────
   // ST-01.3.6 — Primary nightly cron: 31 18 * * * (00:01 IST)
   // ─────────────────────────────────────────────────────────────────────────────
-  private registerNightlyJob() {
-    cron.schedule('31 18 * * *', async () => {
-      const targetDate = yesterdayIST();
-      this.logger.log(
-        `[Scheduler] Nightly job triggered for date: ${targetDate}`,
-      );
+  @Cron('31 18 * * *', { name: 'analytics-nightly', timeZone: 'UTC' })
+  async handleNightlyJob(): Promise<void> {
+    const targetDate = yesterdayIST();
+    this.logger.log(`[NightlyJob] Triggered for date: ${targetDate}`);
 
-      try {
-        await this.analyticsComputeService.runNightlyJob(targetDate);
-        this.lastSuccessfulDate = targetDate;
-        this.logger.log(
-          `[Scheduler] Nightly job succeeded for date: ${targetDate}`,
-        );
-      } catch (err) {
-        this.logger.error(
-          `[Scheduler] Nightly job FAILED for date: ${targetDate} — ${err?.message}`,
-          err?.stack,
-        );
-        // Retry will pick this up in the hourly job below
-      }
-    });
+    try {
+      await this.analyticsComputeService.runNightlyJob(targetDate);
+      this.lastSuccessfulDate = targetDate;
+      this.logger.log(`[NightlyJob] Succeeded for date: ${targetDate}`);
+    } catch (err) {
+      this.logger.error(
+        `[NightlyJob] FAILED for date: ${targetDate} — ${err?.message}`,
+        err?.stack,
+      );
+      // Hourly retry job below will pick this up
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // ST-01.3.5 — Hourly retry: runs if the nightly job missed yesterday
+  // ST-01.3.5 — Hourly retry: re-runs if the nightly job missed yesterday
   // ─────────────────────────────────────────────────────────────────────────────
-  private registerHourlyRetryJob() {
-    cron.schedule('0 * * * *', async () => {
-      const targetDate = yesterdayIST();
+  @Cron('0 * * * *', { name: 'analytics-hourly-retry', timeZone: 'UTC' })
+  async handleHourlyRetry(): Promise<void> {
+    const targetDate = yesterdayIST();
 
-      // Skip if the nightly job already succeeded for this date
-      if (this.lastSuccessfulDate === targetDate) {
-        return;
-      }
+    // Skip if the nightly job already succeeded for this date
+    if (this.lastSuccessfulDate === targetDate) {
+      return;
+    }
 
-      this.logger.warn(
-        `[Scheduler] Retry job: nightly job had not succeeded for ${targetDate}. Retrying...`,
+    this.logger.warn(
+      `[HourlyRetry] Nightly job had not succeeded for ${targetDate}. Retrying...`,
+    );
+
+    try {
+      await this.analyticsComputeService.runNightlyJob(targetDate);
+      this.lastSuccessfulDate = targetDate;
+      this.logger.log(`[HourlyRetry] Succeeded for date: ${targetDate}`);
+    } catch (err) {
+      this.logger.error(
+        `[HourlyRetry] Also FAILED for date: ${targetDate} — ${err?.message}`,
+        err?.stack,
       );
-
-      try {
-        await this.analyticsComputeService.runNightlyJob(targetDate);
-        this.lastSuccessfulDate = targetDate;
-        this.logger.log(
-          `[Scheduler] Retry job succeeded for date: ${targetDate}`,
-        );
-      } catch (err) {
-        this.logger.error(
-          `[Scheduler] Retry job also FAILED for date: ${targetDate} — ${err?.message}`,
-          err?.stack,
-        );
-      }
-    });
+    }
   }
 
   /**
-   * Manual trigger for testing purposes.
-   * Can be called from the admin controller.
+   * Manual trigger — exposed via the admin controller for testing.
    */
   async triggerManually(targetDate?: string): Promise<void> {
     const date = targetDate ?? yesterdayIST();
-    this.logger.log(`[Scheduler] Manual trigger for date: ${date}`);
+    this.logger.log(`[ManualTrigger] Running nightly job for date: ${date}`);
     await this.analyticsComputeService.runNightlyJob(date);
     this.lastSuccessfulDate = date;
   }

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule';
 import {
   DailyProductSales,
   DailyProductSalesSchema,
@@ -15,6 +16,7 @@ import { AnalyticsAdminController } from './analytics-admin.controller';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     MongooseModule.forFeature([
       { name: DailyProductSales.name, schema: DailyProductSalesSchema },
       { name: DailyRevenueSummary.name, schema: DailyRevenueSummarySchema },
