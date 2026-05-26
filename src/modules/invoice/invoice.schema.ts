@@ -136,4 +136,4 @@ InvoiceSchema.index({ tenantId: 1, outletId: 1, createdAt: -1 });
 InvoiceSchema.index({ tenantId: 1, paymentMethod: 1 });
 InvoiceSchema.index({ tenantId: 1, gstEnabled: 1 });
 InvoiceSchema.index({ tenantId: 1, 'items.productId': 1 });
-InvoiceSchema.index({ originalInvoiceId: 1 });
+InvoiceSchema.index({ tenantId: 1, originalInvoiceId: 1, invoiceType: 1, isDeleted: 1 });
