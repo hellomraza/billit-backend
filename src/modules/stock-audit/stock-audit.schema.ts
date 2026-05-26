@@ -4,6 +4,7 @@ import { Document, Types } from 'mongoose';
 export enum ChangeType {
   SALE = 'SALE',
   MANUAL_UPDATE = 'MANUAL_UPDATE',
+  REFUND = 'REFUND',
 }
 
 @Schema({ timestamps: false })

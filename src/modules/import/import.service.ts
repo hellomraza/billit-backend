@@ -214,23 +214,12 @@ export class ImportService {
    * Get CSV template for product import
    */
   getTemplate() {
-    return {
-      template:
-        'name,price,gst_rate,opening_stock,deficit_threshold\n' +
-        'Laptop Computer,99999.99,18,100,5\n' +
-        'Office Chair,5999.99,18,50,3\n' +
-        'USB Cable,299.99,18,200,10\n',
-      instructions:
-        'Columns (all required except opening_stock and deficit_threshold): ' +
-        'name (max 200 chars), ' +
-        'price (positive number, max 2 decimals), ' +
-        'gst_rate (one of: 0, 5, 12, 18, 28), ' +
-        'opening_stock (optional, defaults to 0, must be integer >= 0), ' +
-        'deficit_threshold (optional, defaults to 10, must be integer >= 1). ' +
-        'Max file size: 5 MB. ' +
-        'Max rows: 1000 (excluding header). ' +
-        'Invalid rows are skipped with details in error report.',
-    };
+    return [
+      'name,price,gst_rate,opening_stock,deficit_threshold',
+      'Laptop Computer,99999.99,18,100,5',
+      'Office Chair,5999.99,12,50,3',
+      'USB Cable,299.99,5,200,10',
+    ].join('\n');
   }
 
   // ==================== Private Helpers ====================

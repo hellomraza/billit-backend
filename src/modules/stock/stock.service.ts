@@ -214,18 +214,25 @@ export class StockService {
     quantity: number,
     session?: ClientSession,
   ): Promise<Stock> {
-    const newQuantity = {
-      // Ensure quantity doesn't go below 0
-      $max: [{ $subtract: [{ $ifNull: ['$quantity', 0] }, quantity] }, 0],
-    };
     const stock = await this.stockModel.findOneAndUpdate(
       {
         tenantId: new Types.ObjectId(tenantId),
         productId: new Types.ObjectId(productId),
         outletId: new Types.ObjectId(outletId),
       },
-      [{ $set: { quantity: newQuantity } }],
-      { new: true, upsert: true, session },
+      [
+        {
+          $set: {
+            quantity: {
+              $max: [
+                { $subtract: [{ $ifNull: ['$quantity', 0] }, quantity] },
+                0,
+              ],
+            },
+          },
+        },
+      ],
+      { new: true, upsert: true, session, updatePipeline: true },
     );
 
     if (!stock) {

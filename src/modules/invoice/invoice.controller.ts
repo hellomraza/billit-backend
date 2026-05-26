@@ -32,7 +32,8 @@ import {
   OverrideBlockedResponseDto,
   StockInsufficientResponseDto,
 } from './dto/invoice-create.dto';
-import { PaymentMethod } from './invoice.schema';
+import { CreateRefundDto } from './dto/invoice-refund.dto';
+import { InvoiceType, PaymentMethod } from './invoice.schema';
 import { InvoiceService } from './invoice.service';
 
 @UseGuards(JwtAuthGuard, TenantValidationGuard)
@@ -279,6 +280,13 @@ export class InvoiceController {
     description: 'Filter by product ID in invoice items',
     example: '507f1f77bcf86cd799439011',
   })
+  @ApiQuery({
+    name: 'invoiceType',
+    required: false,
+    type: 'string',
+    description: 'Filter by invoice type (SALE, REFUND, ALL)',
+    example: 'SALE',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated list of invoices matching filters',
@@ -306,10 +314,19 @@ export class InvoiceController {
     @Query('gstEnabled') gstEnabled?: string,
     @Query('outletId') outletId?: string,
     @Query('productId') productId?: string,
+    @Query('invoiceType') invoiceType?: string,
   ) {
     // Cap limit to 100
     const parsedLimit = Math.min(parseInt(limit) || 20, 100);
     const parsedPage = Math.max(parseInt(page) || 1, 1);
+
+    // Normalize invoiceType: accept case-insensitive 'SALE', 'REFUND', or 'ALL'.
+    // Treat 'ALL' (or absent/invalid) as no filter.
+    let normalizedInvoiceType: string | undefined = undefined;
+    if (invoiceType) {
+      const up = invoiceType.toString().toUpperCase();
+      if (up === 'SALE' || up === 'REFUND') normalizedInvoiceType = up;
+    }
 
     const { data, total } = await this.invoiceService.findWithFilters(
       tenantId,
@@ -328,6 +345,7 @@ export class InvoiceController {
               : undefined,
         outletId,
         productId,
+        invoiceType: normalizedInvoiceType,
       },
     );
 
@@ -364,8 +382,86 @@ export class InvoiceController {
     @Param('tenantId') tenantId: string,
     @Param('invoiceId') invoiceId: string,
   ) {
-    const invoice = await this.invoiceService.findById(tenantId, invoiceId);
+    const invoice: any = await this.invoiceService.findById(
+      tenantId,
+      invoiceId,
+    );
+
+    if (invoice.invoiceType === InvoiceType.SALE) {
+      const refunds = await this.invoiceService.findRefundsByOriginalInvoice(
+        tenantId,
+        invoiceId,
+      );
+      invoice.refunds = refunds.map((r) => ({
+        id: r._id.toString(),
+        invoiceNumber: r.invoiceNumber,
+        grandTotal: this.parseDecimal(r.grandTotal),
+        createdAt: r.createdAt.toISOString(),
+        itemCount: r.items.length,
+      }));
+    } else if (
+      invoice.invoiceType === InvoiceType.REFUND &&
+      invoice.originalInvoiceId
+    ) {
+      const original = await this.invoiceService.findOriginalInvoiceSummary(
+        tenantId,
+        invoice.originalInvoiceId.toString(),
+      );
+      if (original) {
+        invoice.originalInvoice = {
+          id: original._id.toString(),
+          invoiceNumber: original.invoiceNumber,
+          createdAt: original.createdAt.toISOString(),
+        };
+      }
+    }
+
     return this.invoiceToDetailResponse(invoice);
+  }
+
+  /**
+   * Create refund invoice
+   */
+  @ApiOperation({ summary: 'Create refund invoice' })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID',
+  })
+  @ApiParam({
+    name: 'invoiceId',
+    description: 'Original Invoice ID',
+  })
+  @ApiResponse({ status: 201, description: 'Refund invoice created' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @Post(':invoiceId/refund')
+  async createRefund(
+    @Param('tenantId') tenantId: string,
+    @Param('invoiceId') invoiceId: string,
+    @Body() createRefundDto: CreateRefundDto,
+  ) {
+    const result = await this.invoiceService.createRefund(
+      tenantId,
+      invoiceId,
+      createRefundDto,
+    );
+
+    // Service returns { invoice, replayed }
+    const refund = (result as any).invoice || result;
+    const replayed = (result as any).replayed === true;
+
+    if (replayed) {
+      return {
+        statusCode: 200,
+        message: 'Refund invoice already exists (idempotent replay)',
+        data: this.invoiceToDetailResponse(refund),
+      };
+    }
+
+    return {
+      statusCode: 201,
+      message: 'Refund invoice created successfully',
+      data: this.invoiceToDetailResponse(refund),
+    };
   }
 
   /**
@@ -409,6 +505,9 @@ export class InvoiceController {
         gstRate: item.gstRate,
         gstAmount: this.parseDecimal(item.gstAmount),
         lineTotal: this.parseDecimal(item.lineTotal),
+        itemDiscountType: item.itemDiscountType,
+        itemDiscountValue: this.parseDecimal(item.itemDiscountValue),
+        itemDiscountAmount: this.parseDecimal(item.itemDiscountAmount),
       })),
       gstEnabled: invoice.gstEnabled,
       subtotal: this.parseDecimal(invoice.subtotal),
@@ -426,6 +525,9 @@ export class InvoiceController {
         gstEnabled: invoice.gstEnabled,
       },
       abbreviationsLocked: invoice.abbreviationsLocked,
+      billDiscountType: invoice.billDiscountType,
+      billDiscountValue: this.parseDecimal(invoice.billDiscountValue),
+      billDiscountAmount: this.parseDecimal(invoice.billDiscountAmount),
     };
   }
 
@@ -476,10 +578,16 @@ export class InvoiceController {
         gstRate: item.gstRate,
         gstAmount: this.parseDecimal(item.gstAmount),
         lineTotal: this.parseDecimal(item.lineTotal),
+        itemDiscountType: item.itemDiscountType,
+        itemDiscountValue: this.parseDecimal(item.itemDiscountValue),
+        itemDiscountAmount: this.parseDecimal(item.itemDiscountAmount),
       })),
       subtotal: this.parseDecimal(invoice.subtotal),
       gstTotal: this.parseDecimal(invoice.totalGstAmount),
       grandTotal: this.parseDecimal(invoice.grandTotal),
+      billDiscountType: invoice.billDiscountType,
+      billDiscountValue: this.parseDecimal(invoice.billDiscountValue),
+      billDiscountAmount: this.parseDecimal(invoice.billDiscountAmount),
       deficitItems: invoice.items
         .filter((item: any) => item.overridden)
         .map((item: any) => ({
@@ -488,6 +596,8 @@ export class InvoiceController {
           quantity: item.quantity,
           currentResolutionStatus: 'PENDING', // TODO: Fetch actual status from deficit records
         })),
+      refunds: invoice.refunds,
+      originalInvoice: invoice.originalInvoice,
     };
   }
 

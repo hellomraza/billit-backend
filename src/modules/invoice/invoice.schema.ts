@@ -9,6 +9,17 @@ export enum PaymentMethod {
   BANK_TRANSFER = 'BANK_TRANSFER',
 }
 
+export enum InvoiceType {
+  SALE = 'SALE',
+  REFUND = 'REFUND',
+}
+
+export enum DiscountType {
+  NONE = 'NONE',
+  PERCENTAGE = 'PERCENTAGE',
+  FLAT = 'FLAT',
+}
+
 export interface InvoiceItem {
   productId: Types.ObjectId;
   productName: string;
@@ -18,6 +29,9 @@ export interface InvoiceItem {
   gstAmount: any;
   lineTotal: any;
   overridden?: boolean; // Whether this item was overridden due to insufficient stock
+  itemDiscountType: DiscountType; // Discount type applied to this item
+  itemDiscountValue: any; // Discount value (percentage or flat amount)
+  itemDiscountAmount: any; // Computed discount amount in rupees
 }
 
 export type InvoiceDocument = Invoice & Document;
@@ -85,6 +99,26 @@ export class Invoice {
   @Prop({ default: false })
   isDeleted: boolean;
 
+  // Refund tracking fields
+  @Prop({ enum: InvoiceType, default: InvoiceType.SALE, required: true })
+  invoiceType: InvoiceType;
+
+  @Prop({ type: Types.ObjectId, default: null, nullable: true })
+  originalInvoiceId: Types.ObjectId;
+
+  @Prop({ maxlength: 500, default: null, nullable: true })
+  refundReason: string;
+
+  // Bill-level discount fields (immutable snapshot from invoice creation time)
+  @Prop({ enum: DiscountType, default: DiscountType.NONE })
+  billDiscountType: DiscountType;
+
+  @Prop({ type: 'Decimal128', default: 0 })
+  billDiscountValue: any;
+
+  @Prop({ type: 'Decimal128', default: 0 })
+  billDiscountAmount: any;
+
   @Prop()
   createdAt: Date;
 
@@ -102,3 +136,4 @@ InvoiceSchema.index({ tenantId: 1, outletId: 1, createdAt: -1 });
 InvoiceSchema.index({ tenantId: 1, paymentMethod: 1 });
 InvoiceSchema.index({ tenantId: 1, gstEnabled: 1 });
 InvoiceSchema.index({ tenantId: 1, 'items.productId': 1 });
+InvoiceSchema.index({ tenantId: 1, originalInvoiceId: 1, invoiceType: 1, isDeleted: 1 });
