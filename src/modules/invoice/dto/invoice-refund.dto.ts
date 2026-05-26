@@ -57,14 +57,16 @@ export class CreateRefundDto {
   refundReason?: string;
 
   @ApiProperty({
-    description: 'Array of items to refund',
+    description:
+      'Optional itemized refund payload. When omitted, the full bill is refunded.',
     type: [RefundItemDto],
-    minItems: 1,
+    required: false,
   })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => RefundItemDto)
-  items: RefundItemDto[];
+  items?: RefundItemDto[];
 }
 
 export class RefundViolationItemDto {
@@ -88,6 +90,8 @@ export class RefundViolationResponseDto {
   @ApiProperty({ type: [RefundViolationItemDto] })
   violations: RefundViolationItemDto[];
 
-  @ApiProperty({ example: 'Some items exceed the maximum returnable quantity.' })
+  @ApiProperty({
+    example: 'Some items exceed the maximum returnable quantity.',
+  })
   message: string;
 }
