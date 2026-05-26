@@ -439,11 +439,24 @@ export class InvoiceController {
     @Param('invoiceId') invoiceId: string,
     @Body() createRefundDto: CreateRefundDto,
   ) {
-    const refund = await this.invoiceService.createRefund(
+    const result = await this.invoiceService.createRefund(
       tenantId,
       invoiceId,
       createRefundDto,
     );
+
+    // Service returns { invoice, replayed }
+    const refund = (result as any).invoice || result;
+    const replayed = (result as any).replayed === true;
+
+    if (replayed) {
+      return {
+        statusCode: 200,
+        message: 'Refund invoice already exists (idempotent replay)',
+        data: this.invoiceToDetailResponse(refund),
+      };
+    }
+
     return {
       statusCode: 201,
       message: 'Refund invoice created successfully',
