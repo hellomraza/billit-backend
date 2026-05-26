@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   HttpCode,
   HttpStatus,
@@ -10,8 +11,10 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiHeader,
   ApiOperation,
+  ApiProperty,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -21,15 +24,29 @@ import {
   AnalyticsComputeService,
   yesterdayIST,
 } from './analytics-compute.service';
+import { IsDateString, IsOptional } from 'class-validator';
+
+export class NightlyJobBodyDto {
+  @ApiProperty({
+    description:
+      'Target date in YYYY-MM-DD (IST). Defaults to yesterday IST if omitted. ' +
+      'Use for testing or retrying a specific date.',
+    example: '2026-05-24',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  targetDate?: string;
+}
 
 /**
  * HTTP endpoints called by cron-job.org on a schedule.
  *
  * Security:
  *   - CronAuthGuard: IP allowlist + Authorization: Bearer <CRON_SECRET>
- *   - Throttler: max 5 requests / 60 s per IP (prevents replay flooding)
- *   - POST only (never GET — no accidental browser/crawler triggers)
- *   - Secrets never in URL query params
+ *   - Throttler: strict per-endpoint limits
+ *   - POST only — no accidental GET triggers by browsers/crawlers
+ *   - Secrets NEVER in URL query params
  *
  * Idempotency:
  *   - All computation uses upsert — safe to call multiple times for same date.
@@ -56,28 +73,45 @@ export class AnalyticsCronController {
   // ─────────────────────────────────────────────────────────────────────────────
   // POST /cron/analytics/nightly
   // Called by cron-job.org at 00:01 IST (18:31 UTC) every day.
+  // Optionally accepts { targetDate } body for retry/testing scenarios.
   // ─────────────────────────────────────────────────────────────────────────────
   @ApiOperation({
     summary: 'Nightly analytics computation (cron-job.org trigger)',
     description:
-      'Computes DailyProductSales and DailyRevenueSummary for yesterday (IST). ' +
+      'Computes DailyProductSales and DailyRevenueSummary for yesterday IST. ' +
+      'Pass optional { targetDate: "YYYY-MM-DD" } to reprocess a specific date. ' +
       'Idempotent — safe to call multiple times. Protected by IP allowlist + Bearer token.',
   })
-  @ApiResponse({ status: 200, description: 'Job completed successfully' })
+  @ApiBody({ type: NightlyJobBodyDto, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Job completed successfully',
+    schema: {
+      example: {
+        success: true,
+        targetDate: '2026-05-24',
+        durationMs: 32,
+        message: 'Nightly job completed for 2026-05-24',
+      },
+    },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized — bad/missing token' })
   @ApiResponse({ status: 403, description: 'Forbidden — IP not in allowlist' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('nightly')
   @HttpCode(HttpStatus.OK)
-  async runNightlyJob(@Req() req: Request): Promise<{
+  async runNightlyJob(
+    @Req() req: Request,
+    @Body() body: NightlyJobBodyDto = {},
+  ): Promise<{
     success: boolean;
     targetDate: string;
     durationMs: number;
     message: string;
   }> {
     const ip = this.extractIp(req);
-    const targetDate = yesterdayIST();
+    const targetDate = body?.targetDate ?? yesterdayIST();
     const startedAt = Date.now();
 
     this.logger.log(
@@ -104,14 +138,13 @@ export class AnalyticsCronController {
         `[Nightly] FAILURE | ip=${ip} | targetDate=${targetDate} | durationMs=${durationMs} | error=${err?.message}`,
         err?.stack,
       );
-      throw err; // Let NestJS exception filter return the appropriate HTTP status
+      throw err;
     }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // POST /cron/analytics/backfill
-  // One-time endpoint to backfill all historical analytics data.
-  // Async fire-and-forget — returns 202 immediately.
+  // One-time backfill — async fire-and-forget, returns 202 immediately.
   // ─────────────────────────────────────────────────────────────────────────────
   @ApiOperation({
     summary: 'Trigger historical analytics backfill (admin / one-time)',
@@ -124,7 +157,7 @@ export class AnalyticsCronController {
   @ApiResponse({ status: 401, description: 'Unauthorized — bad/missing token' })
   @ApiResponse({ status: 403, description: 'Forbidden — IP not in allowlist' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  @Throttle({ default: { limit: 2, ttl: 60000 } }) // Stricter — one-time operation
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
   @Post('backfill')
   @HttpCode(HttpStatus.ACCEPTED)
   async runBackfill(@Req() req: Request): Promise<{
@@ -139,7 +172,6 @@ export class AnalyticsCronController {
       `[Backfill] START (async) | ip=${ip} | timestamp=${startedAt}`,
     );
 
-    // Fire and forget — do NOT await
     this.analyticsComputeService
       .runBackfill()
       .then(() => {
