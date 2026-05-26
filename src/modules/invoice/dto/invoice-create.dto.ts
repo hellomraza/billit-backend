@@ -242,6 +242,7 @@ export class InvoiceItemResponseDto {
     example: 'NONE',
     required: false,
   })
+  @IsIn(['NONE', 'PERCENTAGE', 'FLAT'])
   itemDiscountType?: string;
 
   @ApiProperty({
@@ -249,6 +250,8 @@ export class InvoiceItemResponseDto {
     example: 0,
     required: false,
   })
+  @IsNumber()
+  @Type(() => Number)
   itemDiscountValue?: number;
 
   @ApiProperty({
@@ -256,6 +259,8 @@ export class InvoiceItemResponseDto {
     example: 0,
     required: false,
   })
+  @IsNumber()
+  @Type(() => Number)
   itemDiscountAmount?: number;
 }
 
