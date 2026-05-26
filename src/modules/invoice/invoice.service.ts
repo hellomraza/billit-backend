@@ -545,10 +545,20 @@ export class InvoiceService {
       throw new ConflictException('This invoice has not finished syncing.');
     }
 
-    const requestedItems = dto.items.filter((item) => item.quantity > 0);
+    const existingRefunds = await this.invoiceModel.find({
+      tenantId: new Types.ObjectId(tenantId),
+      originalInvoiceId: new Types.ObjectId(originalInvoiceId),
+      invoiceType: InvoiceType.REFUND,
+      isDeleted: false,
+    });
+
+    const requestedItems = dto.items?.length
+      ? dto.items.filter((item) => item.quantity > 0)
+      : this.buildFullRefundRequestedItems(originalInvoice, existingRefunds);
+
     if (requestedItems.length === 0) {
-      throw new BadRequestException(
-        'Refund must contain at least one item with quantity > 0',
+      throw new ConflictException(
+        'This invoice has already been fully refunded.',
       );
     }
 
@@ -562,13 +572,6 @@ export class InvoiceService {
     const validItems: Array<
       InvoiceItem & { effectiveUnitPrice: number; returnQuantity: number }
     > = [];
-
-    const existingRefunds = await this.invoiceModel.find({
-      tenantId: new Types.ObjectId(tenantId),
-      originalInvoiceId: new Types.ObjectId(originalInvoiceId),
-      invoiceType: InvoiceType.REFUND,
-      isDeleted: false,
-    });
 
     for (const reqItem of requestedItems) {
       const originalItem = originalInvoice.items.find(
@@ -742,5 +745,44 @@ export class InvoiceService {
         return refundInvoice.save({ session });
       },
     );
+  }
+
+  private buildFullRefundRequestedItems(
+    originalInvoice: Invoice,
+    existingRefunds: Invoice[],
+  ): Array<{ productId: Types.ObjectId; quantity: number }> {
+    return originalInvoice.items
+      .map((originalItem) => {
+        let previouslyRefundedQty = 0;
+
+        for (const refund of existingRefunds) {
+          const refundedItem = refund.items.find(
+            (i: any) =>
+              i.productId.toString() === originalItem.productId.toString(),
+          );
+
+          if (refundedItem) {
+            previouslyRefundedQty += Math.abs(refundedItem.quantity);
+          }
+        }
+
+        const remainingQty = originalItem.quantity - previouslyRefundedQty;
+        if (remainingQty <= 0) {
+          return null;
+        }
+
+        return {
+          productId: originalItem.productId,
+          quantity: remainingQty,
+        };
+      })
+      .filter(
+        (
+          item,
+        ): item is {
+          productId: Types.ObjectId;
+          quantity: number;
+        } => item !== null,
+      );
   }
 }
