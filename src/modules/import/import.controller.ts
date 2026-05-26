@@ -7,8 +7,10 @@ import {
   Post,
   Req,
   UploadedFile,
+  Res,
   UseGuards,
   UseInterceptors,
+  StreamableFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -17,9 +19,10 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { CsvFileUpload } from '../../decorator/file-upload.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CsvTemplateDto, ImportReportDto } from './dto/import.dto';
+import { ImportReportDto } from './dto/import.dto';
 import { ImportService } from './import.service';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -149,13 +152,33 @@ export class ImportController {
   @ApiResponse({
     status: 200,
     description: 'CSV template with instructions',
-    type: CsvTemplateDto,
+    content: {
+      'text/csv': {
+        schema: {
+          type: 'string',
+          example:
+            'name,price,gst_rate,opening_stock,deficit_threshold\n' +
+            'Laptop Computer,99999.99,18,100,5\n' +
+            'Office Chair,5999.99,12,50,3\n' +
+            'USB Cable,299.99,5,200,10\n',
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized',
   })
-  async getTemplate() {
-    return this.importService.getTemplate();
+  async getTemplate(@Res({ passthrough: true }) response: Response) {
+    const template = this.importService.getTemplate();
+
+    response.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    response.setHeader(
+      'Content-Disposition',
+      'attachment; filename="billit_import_template.csv"',
+    );
+    response.setHeader('Cache-Control', 'no-store');
+
+    return new StreamableFile(Buffer.from(template, 'utf8'));
   }
 }
