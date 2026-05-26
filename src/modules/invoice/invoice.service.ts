@@ -668,10 +668,12 @@ export class InvoiceService {
             session,
           );
 
+          const gstEnabled = !!originalInvoice.gstEnabled;
+          const appliedGstRate = gstEnabled ? vItem.gstRate : 0;
           const gstAmount = -(
             vItem.effectiveUnitPrice *
             vItem.returnQuantity *
-            (vItem.gstRate / 100)
+            (appliedGstRate / 100)
           );
           const roundedGstAmount = Math.round(gstAmount * 100) / 100;
           const lineTotal = -(
