@@ -719,7 +719,7 @@ export class InvoiceService {
           paymentMethod: originalInvoice.paymentMethod,
           customerName: originalInvoice.customerName,
           customerPhone: originalInvoice.customerPhone,
-          refundReason: dto.refundReason || null,
+          refundReason: dto.refundReason ?? null,
           invoiceNumber,
           clientGeneratedId: dto.clientGeneratedId,
           billDiscountType: DiscountType.NONE,
