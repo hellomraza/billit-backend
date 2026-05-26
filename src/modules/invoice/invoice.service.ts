@@ -519,13 +519,13 @@ export class InvoiceService {
     tenantId: string,
     originalInvoiceId: string,
     dto: CreateRefundDto,
-  ): Promise<Invoice> {
+  ): Promise<{ invoice: Invoice; replayed: boolean }> {
     const existing = await this.invoiceModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
       clientGeneratedId: dto.clientGeneratedId,
     });
     if (existing) {
-      return existing;
+      return { invoice: existing, replayed: true };
     }
 
     const originalInvoice = await this.invoiceModel.findOne({
@@ -635,7 +635,7 @@ export class InvoiceService {
             clientGeneratedId: dto.clientGeneratedId,
           })
           .session(session);
-        if (existingTx) return existingTx;
+        if (existingTx) return { invoice: existingTx, replayed: true } as any;
 
         const refundId = new Types.ObjectId();
         const items: InvoiceItem[] = [];
@@ -742,7 +742,8 @@ export class InvoiceService {
           isDeleted: false,
         });
 
-        return refundInvoice.save({ session });
+        const saved = await refundInvoice.save({ session });
+        return { invoice: saved, replayed: false } as any;
       },
     );
   }
