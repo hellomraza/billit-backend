@@ -21,6 +21,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { StockAuditModule } from './modules/stock-audit/stock-audit.module';
 import { StockModule } from './modules/stock/stock.module';
 import { TenantModule } from './modules/tenant/tenant.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { TenantModule } from './modules/tenant/tenant.module';
     DailyCounterModule,
     PasswordResetModule,
     HealthModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
