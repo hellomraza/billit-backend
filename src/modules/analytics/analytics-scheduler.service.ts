@@ -26,6 +26,15 @@ export class AnalyticsSchedulerService {
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // TEST — Heartbeat cron: runs every minute to confirm scheduler is alive
+  // Remove this in production once crons are verified.
+  // ─────────────────────────────────────────────────────────────────────────────
+  @Cron('* * * * *', { name: 'analytics-heartbeat' })
+  handleHeartbeat(): void {
+    this.logger.log('[Heartbeat] ✅ Cron scheduler is alive — ' + new Date().toISOString());
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // ST-01.3.6 — Primary nightly cron: 31 18 * * * (00:01 IST)
   // ─────────────────────────────────────────────────────────────────────────────
   @Cron('31 18 * * *', { name: 'analytics-nightly', timeZone: 'UTC' })
