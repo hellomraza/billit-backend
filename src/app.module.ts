@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
@@ -21,6 +22,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { StockAuditModule } from './modules/stock-audit/stock-audit.module';
 import { StockModule } from './modules/stock/stock.module';
 import { TenantModule } from './modules/tenant/tenant.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { TenantModule } from './modules/tenant/tenant.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    // Global rate limiting — cron endpoints add stricter per-route @Throttle overrides
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 20 }]),
     DatabaseModule,
     AuthModule,
     DraftModule,
@@ -44,6 +48,7 @@ import { TenantModule } from './modules/tenant/tenant.module';
     DailyCounterModule,
     PasswordResetModule,
     HealthModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
