@@ -11,6 +11,7 @@ import {
 import { Invoice, InvoiceSchema } from '../invoice/invoice.schema';
 import { AnalyticsComputeService } from './analytics-compute.service';
 import { AnalyticsCronController } from './analytics-cron.controller';
+import { AnalyticsAdminController } from './analytics-admin.controller';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { AnalyticsCronController } from './analytics-cron.controller';
     ]),
   ],
   providers: [AnalyticsComputeService],
-  controllers: [AnalyticsCronController],
+  controllers: [AnalyticsCronController, AnalyticsAdminController],
   exports: [AnalyticsComputeService],
 })
 export class AnalyticsModule {}
