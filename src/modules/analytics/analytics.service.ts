@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Stock } from '../stock/stock.schema';
@@ -6,6 +6,10 @@ import { Product } from '../product/product.schema';
 import { DailyProductSales } from './schemas/daily-product-sales.schema';
 import { Invoice } from '../invoice/invoice.schema';
 import { DeficitRecord, DeficitStatus } from '../deficit/deficit.schema';
+import {
+  DailyRevenueSummary,
+  DailyRevenueSummaryDocument,
+} from './schemas/daily-revenue-summary.schema';
 import { OutletService } from '../outlet/outlet.service';
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -48,6 +52,8 @@ export class AnalyticsService {
     @InjectModel(Invoice.name) private readonly invoiceModel: Model<Invoice>,
     @InjectModel(DeficitRecord.name)
     private readonly deficitRecordModel: Model<DeficitRecord>,
+    @InjectModel(DailyRevenueSummary.name)
+    private readonly dailyRevenueSummaryModel: Model<DailyRevenueSummaryDocument>,
     private readonly outletService: OutletService,
   ) {}
 
@@ -500,6 +506,271 @@ export class AnalyticsService {
       totalPendingQuantity,
       hasDeficits: pendingProductCount > 0,
     };
+  }
+
+  /**
+   * Returns the four summary card values (totalNetRevenue, totalInvoices,
+   * totalRefundsCount, totalRefundsAmount, avgInvoiceValue) for the given period.
+   */
+  async getRevenueSummary(
+    tenantId: string,
+    period: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<{
+    period: string;
+    startDate: string;
+    endDate: string;
+    totalNetRevenue: number;
+    totalInvoices: number;
+    totalRefundsCount: number;
+    totalRefundsAmount: number;
+    avgInvoiceValue: number;
+  }> {
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const defaultOutlet = await this.outletService.getDefault(tenantId);
+
+    // 1. Resolve date range in IST
+    const { startDateStr, endDateStr } = this.resolveDateRange(
+      period,
+      dateFrom,
+      dateTo,
+    );
+
+    const allDates = this.generateDateRange(startDateStr, endDateStr);
+    const todayStr = todayIST();
+
+    // Separate historical dates to query precomputed summaries
+    const historicalDates = allDates.filter((d) => d !== todayStr);
+    const summaryMap = new Map<string, any>();
+
+    if (historicalDates.length > 0) {
+      const summaries = await this.dailyRevenueSummaryModel.find({
+        outletId: defaultOutlet._id,
+        date: { $in: historicalDates },
+      });
+      for (const s of summaries) {
+        summaryMap.set(s.date, s);
+      }
+    }
+
+    let totalNetRevenue = 0;
+    let totalInvoices = 0;
+    let totalRefundsCount = 0;
+
+    // 2. Fetch data day by day with hybrid precomputed + live fallback strategy
+    for (const date of allDates) {
+      if (date === todayStr) {
+        // Today is always live
+        const live = await this.queryLiveInvoiceRevenue(
+          tenantObjectId,
+          defaultOutlet._id,
+          date,
+        );
+        totalNetRevenue += live.netRevenue;
+        totalInvoices += live.totalInvoices;
+        totalRefundsCount += live.totalRefunds;
+      } else if (summaryMap.has(date)) {
+        // Historical precomputed exists
+        const s = summaryMap.get(date)!;
+        totalNetRevenue += parseFloat(s.netRevenue?.toString() || '0');
+        totalInvoices += s.totalInvoices;
+        totalRefundsCount += s.totalRefunds;
+      } else {
+        // Historical precomputed is missing, fall back to live query for that day
+        const live = await this.queryLiveInvoiceRevenue(
+          tenantObjectId,
+          defaultOutlet._id,
+          date,
+        );
+        totalNetRevenue += live.netRevenue;
+        totalInvoices += live.totalInvoices;
+        totalRefundsCount += live.totalRefunds;
+      }
+    }
+
+    // 3. Query all REFUND invoices in this period live to compute totalRefundsAmount
+    const startUtc = new Date(`${startDateStr}T00:00:00+05:30`);
+    const endUtc = new Date(`${endDateStr}T23:59:59.999+05:30`);
+
+    const refundInvoices = await this.invoiceModel.find({
+      tenantId: tenantObjectId,
+      outletId: this.outletIdFilter(defaultOutlet._id.toString()),
+      invoiceType: 'REFUND',
+      createdAt: { $gte: startUtc, $lte: endUtc },
+      isDeleted: false,
+    });
+
+    let refundsSum = 0;
+    for (const refund of refundInvoices) {
+      refundsSum += parseFloat(refund.grandTotal?.toString() || '0');
+    }
+    const totalRefundsAmount = -refundsSum; // Return as a negative value
+
+    // 4. Compute avgInvoiceValue
+    const avgInvoiceValue =
+      totalInvoices > 0 ? totalNetRevenue / totalInvoices : 0;
+
+    return {
+      period,
+      startDate: startDateStr,
+      endDate: endDateStr,
+      totalNetRevenue: parseFloat(totalNetRevenue.toFixed(2)),
+      totalInvoices,
+      totalRefundsCount,
+      totalRefundsAmount: parseFloat(totalRefundsAmount.toFixed(2)),
+      avgInvoiceValue: parseFloat(avgInvoiceValue.toFixed(2)),
+    };
+  }
+
+  /**
+   * Helper to execute live invoice query for a single calendar date.
+   */
+  private async queryLiveInvoiceRevenue(
+    tenantId: Types.ObjectId,
+    outletId: Types.ObjectId,
+    dateStr: string,
+  ): Promise<{
+    netRevenue: number;
+    totalInvoices: number;
+    totalRefunds: number;
+  }> {
+    const utcStart = new Date(`${dateStr}T00:00:00+05:30`);
+    const utcEnd = new Date(`${dateStr}T23:59:59.999+05:30`);
+
+    const invoices = await this.invoiceModel.aggregate([
+      {
+        $match: {
+          tenantId,
+          outletId: this.outletIdFilter(outletId.toString()),
+          createdAt: { $gte: utcStart, $lte: utcEnd },
+          isDeleted: false,
+        },
+      },
+    ]);
+
+    let totalInvoices = 0;
+    let totalRefunds = 0;
+    let grossRevenue = 0;
+    let totalDiscounts = 0;
+
+    const parseDecimal = (val: any): number => {
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return val;
+      return parseFloat(val.toString?.() || '0');
+    };
+
+    for (const invoice of invoices) {
+      if (invoice.invoiceType === 'SALE') {
+        totalInvoices++;
+        grossRevenue += parseDecimal(invoice.subtotal);
+        let itemDiscountTotal = 0;
+        for (const item of invoice.items) {
+          itemDiscountTotal += parseDecimal(item.itemDiscountAmount);
+        }
+        totalDiscounts +=
+          itemDiscountTotal + parseDecimal(invoice.billDiscountAmount);
+      } else if (invoice.invoiceType === 'REFUND') {
+        totalRefunds++;
+      }
+    }
+
+    const netRevenue = Math.max(0, grossRevenue - totalDiscounts);
+
+    return {
+      netRevenue,
+      totalInvoices,
+      totalRefunds,
+    };
+  }
+
+  /**
+   * Resolves date period strings to IST startDateStr and endDateStr (YYYY-MM-DD format).
+   */
+  private resolveDateRange(
+    period: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): { startDateStr: string; endDateStr: string } {
+    const todayStr = todayIST();
+
+    switch (period) {
+      case 'today':
+        return { startDateStr: todayStr, endDateStr: todayStr };
+
+      case 'this_week': {
+        const now = new Date();
+        const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+        const day = istNow.getUTCDay();
+        const diff = day === 0 ? 6 : day - 1;
+        const monday = new Date(istNow);
+        monday.setUTCDate(istNow.getUTCDate() - diff);
+        const startDateStr = `${monday.getUTCFullYear()}-${pad(monday.getUTCMonth() + 1)}-${pad(monday.getUTCDate())}`;
+        return { startDateStr, endDateStr: todayStr };
+      }
+
+      case 'this_month': {
+        const now = new Date();
+        const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+        const startDateStr = `${istNow.getUTCFullYear()}-${pad(istNow.getUTCMonth() + 1)}-01`;
+        return { startDateStr, endDateStr: todayStr };
+      }
+
+      case 'last7days':
+        return { startDateStr: getIstDateMinusDays(6), endDateStr: todayStr };
+
+      case 'last30days':
+        return { startDateStr: getIstDateMinusDays(29), endDateStr: todayStr };
+
+      case 'last90days':
+        return { startDateStr: getIstDateMinusDays(89), endDateStr: todayStr };
+
+      case 'custom': {
+        if (!dateFrom || !dateTo) {
+          throw new BadRequestException(
+            'dateFrom and dateTo are required for custom period',
+          );
+        }
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(dateFrom) || !dateRegex.test(dateTo)) {
+          throw new BadRequestException(
+            'dateFrom and dateTo must be in YYYY-MM-DD format',
+          );
+        }
+        const start = new Date(`${dateFrom}T00:00:00Z`);
+        const end = new Date(`${dateTo}T00:00:00Z`);
+        if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+          throw new BadRequestException(
+            'Invalid date range. Start date must be <= end date.',
+          );
+        }
+        return { startDateStr: dateFrom, endDateStr: dateTo };
+      }
+
+      default:
+        throw new BadRequestException(
+          'Invalid period. Must be today, this_week, this_month, last7days, last30days, last90days, or custom',
+        );
+    }
+  }
+
+  /**
+   * Helper to generate range of dates YYYY-MM-DD between two date bounds (inclusive).
+   */
+  private generateDateRange(startStr: string, endStr: string): string[] {
+    const dates: string[] = [];
+    const current = new Date(`${startStr}T00:00:00Z`);
+    const end = new Date(`${endStr}T00:00:00Z`);
+
+    while (current <= end) {
+      const y = current.getUTCFullYear();
+      const m = pad(current.getUTCMonth() + 1);
+      const d = pad(current.getUTCDate());
+      dates.push(`${y}-${m}-${d}`);
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    return dates;
   }
 
   private outletIdFilter(outletId: string): any {

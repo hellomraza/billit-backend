@@ -188,4 +188,67 @@ export class AnalyticsController {
   async getDeficitSummary(@Param('tenantId') tenantId: string) {
     return this.analyticsService.getDeficitSummary(tenantId);
   }
+
+  @ApiOperation({
+    summary: 'Get revenue summary cards (net revenue, invoices count, refunds count, refund amounts, avg invoice)',
+    description:
+      'Returns the precomputed and live-merged metrics for the specified period.',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'period',
+    description: 'Time period to query (today, this_week, this_month, last7days, last30days, last90days, custom)',
+    example: 'last30days',
+    required: false,
+    default: 'last30days',
+  })
+  @ApiQuery({
+    name: 'dateFrom',
+    description: 'Start date in YYYY-MM-DD format (required only when period = custom)',
+    example: '2026-05-01',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'dateTo',
+    description: 'End date in YYYY-MM-DD format (required only when period = custom)',
+    example: '2026-05-25',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Revenue summary cards data',
+    schema: {
+      properties: {
+        period: { type: 'string' },
+        startDate: { type: 'string' },
+        endDate: { type: 'string' },
+        totalNetRevenue: { type: 'number' },
+        totalInvoices: { type: 'number' },
+        totalRefundsCount: { type: 'number' },
+        totalRefundsAmount: { type: 'number' },
+        avgInvoiceValue: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid query parameters' })
+  @ApiResponse({ status: 401, description: 'Unauthorized — bad or missing JWT' })
+  @ApiResponse({ status: 404, description: 'Tenant or default outlet not found' })
+  @Get('revenue-summary')
+  async getRevenueSummary(
+    @Param('tenantId') tenantId: string,
+    @Query('period') period: string = 'last30days',
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    return this.analyticsService.getRevenueSummary(
+      tenantId,
+      period,
+      dateFrom,
+      dateTo,
+    );
+  }
 }
