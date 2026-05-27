@@ -146,6 +146,7 @@ export class AnalyticsComputeService {
       {
         $project: {
           _id: 0,
+          // $toString handles both ObjectId and plain-string outletId gracefully
           tenantId: { $toString: '$_id.tenantId' },
           outletId: { $toString: '$_id.outletId' },
         },
@@ -153,6 +154,20 @@ export class AnalyticsComputeService {
     ]);
 
     return results as Array<{ tenantId: string; outletId: string }>;
+  }
+
+  /**
+   * Build an outletId filter that matches BOTH possible storage formats:
+   *   - ObjectId (new records written via Mongoose schema)
+   *   - Plain string (legacy records already in DB)
+   * This prevents zero-result queries when the collection has mixed types.
+   */
+  private outletIdFilter(outletId: string): any {
+    try {
+      return { $in: [outletId, new Types.ObjectId(outletId)] };
+    } catch {
+      return outletId;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -170,15 +185,19 @@ export class AnalyticsComputeService {
     const tenantObjId = new Types.ObjectId(tenantId);
     const outletObjId = new Types.ObjectId(outletId);
 
-    // Fetch all non-deleted invoices for this (tenantId, outletId, date)
-    const invoices = await this.invoiceModel
-      .find({
-        tenantId: tenantObjId,
-        outletId: outletObjId,
-        createdAt: { $gte: utcStart, $lte: utcEnd },
-        isDeleted: false,
-      })
-      .lean();
+    // Fetch all non-deleted invoices for this (tenantId, outletId, date).
+    // Use aggregate (not find) to bypass Mongoose schema casting on outletId,
+    // which may be stored as a plain string in legacy documents.
+    const invoices = await this.invoiceModel.aggregate([
+      {
+        $match: {
+          tenantId: tenantObjId,
+          outletId: this.outletIdFilter(outletId),
+          createdAt: { $gte: utcStart, $lte: utcEnd },
+          isDeleted: false,
+        },
+      },
+    ]);
 
     // Aggregate per productId
     const productMap = new Map<
@@ -234,12 +253,13 @@ export class AnalyticsComputeService {
       }
     }
 
-    // Upsert one row per productId
+    // Upsert one row per productId — use updateOne (not findOneAndUpdate) for
+    // Mongoose 8 compatibility. Filter on unique key; $set writes all fields.
     for (const [productId, data] of productMap.entries()) {
       const netUnitsSold = Math.max(0, data.unitsSold - data.refundedUnits);
       const netRevenue = Math.max(0, data.grossRevenue - data.discountAmount);
 
-      await this.dailyProductSalesModel.findOneAndUpdate(
+      await this.dailyProductSalesModel.updateOne(
         {
           outletId: outletObjId,
           productId: new Types.ObjectId(productId),
@@ -260,7 +280,7 @@ export class AnalyticsComputeService {
             gstAmount: data.gstAmount,
           },
         },
-        { upsert: true, new: true },
+        { upsert: true },
       );
     }
   }
@@ -280,14 +300,17 @@ export class AnalyticsComputeService {
     const tenantObjId = new Types.ObjectId(tenantId);
     const outletObjId = new Types.ObjectId(outletId);
 
-    const invoices = await this.invoiceModel
-      .find({
-        tenantId: tenantObjId,
-        outletId: outletObjId,
-        createdAt: { $gte: utcStart, $lte: utcEnd },
-        isDeleted: false,
-      })
-      .lean();
+    // Use aggregate to bypass Mongoose schema casting on outletId.
+    const invoices = await this.invoiceModel.aggregate([
+      {
+        $match: {
+          tenantId: tenantObjId,
+          outletId: this.outletIdFilter(outletId),
+          createdAt: { $gte: utcStart, $lte: utcEnd },
+          isDeleted: false,
+        },
+      },
+    ]);
 
     let totalInvoices = 0;
     let totalRefunds = 0;
@@ -316,7 +339,7 @@ export class AnalyticsComputeService {
     const netRevenue = Math.max(0, grossRevenue - totalDiscounts);
     const grandTotal = netRevenue + totalGstAmount;
 
-    await this.dailyRevenueSummaryModel.findOneAndUpdate(
+    await this.dailyRevenueSummaryModel.updateOne(
       { outletId: outletObjId, date },
       {
         $set: {
@@ -332,7 +355,7 @@ export class AnalyticsComputeService {
           grandTotal,
         },
       },
-      { upsert: true, new: true },
+      { upsert: true },
     );
   }
 
