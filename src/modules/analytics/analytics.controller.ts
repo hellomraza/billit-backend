@@ -251,4 +251,73 @@ export class AnalyticsController {
       dateTo,
     );
   }
+
+  @ApiOperation({
+    summary: 'Get revenue chart data points grouped by day, week, or hour',
+    description:
+      'Returns daily, weekly, or hourly revenue metrics (net revenue, gross revenue, discounts, invoice count) for the period.',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'period',
+    description: 'Time period to query (today, this_week, this_month, last7days, last30days, last90days, custom)',
+    example: 'last30days',
+    required: false,
+    default: 'last30days',
+  })
+  @ApiQuery({
+    name: 'dateFrom',
+    description: 'Start date in YYYY-MM-DD format (required only when period = custom)',
+    example: '2026-05-01',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'dateTo',
+    description: 'End date in YYYY-MM-DD format (required only when period = custom)',
+    example: '2026-05-25',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Revenue chart data points',
+    schema: {
+      properties: {
+        aggregation: { type: 'string', enum: ['hourly', 'daily', 'weekly'] },
+        dataPoints: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string' },
+              netRevenue: { type: 'number' },
+              grossRevenue: { type: 'number' },
+              discounts: { type: 'number' },
+              invoiceCount: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid query parameters' })
+  @ApiResponse({ status: 401, description: 'Unauthorized — bad or missing JWT' })
+  @ApiResponse({ status: 404, description: 'Tenant or default outlet not found' })
+  @Get('revenue-chart')
+  async getRevenueChart(
+    @Param('tenantId') tenantId: string,
+    @Query('period') period: string = 'last30days',
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    return this.analyticsService.getRevenueChart(
+      tenantId,
+      period,
+      dateFrom,
+      dateTo,
+    );
+  }
 }

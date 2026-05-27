@@ -773,6 +773,288 @@ export class AnalyticsService {
     return dates;
   }
 
+  /**
+   * Returns daily, weekly, or hourly revenue chart data for the bar chart.
+   */
+  async getRevenueChart(
+    tenantId: string,
+    period: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<{
+    aggregation: 'hourly' | 'daily' | 'weekly';
+    dataPoints: Array<{
+      label: string;
+      netRevenue: number;
+      grossRevenue: number;
+      discounts: number;
+      invoiceCount: number;
+    }>;
+  }> {
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const defaultOutlet = await this.outletService.getDefault(tenantId);
+
+    // 1. Resolve date range in IST
+    const { startDateStr, endDateStr } = this.resolveDateRange(
+      period,
+      dateFrom,
+      dateTo,
+    );
+
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    const todayStr = todayIST();
+
+    const parseDecimal = (val: any): number => {
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return val;
+      return parseFloat(val.toString?.() || '0');
+    };
+
+    // --- CASE 1: Hourly Aggregation (today only) ---
+    if (diffDays === 1 && startDateStr === todayStr) {
+      const utcStart = new Date(`${todayStr}T00:00:00+05:30`);
+      const utcEnd = new Date(`${todayStr}T23:59:59.999+05:30`);
+
+      const todayInvoices = await this.invoiceModel.find({
+        tenantId: tenantObjectId,
+        outletId: this.outletIdFilter(defaultOutlet._id.toString()),
+        invoiceType: 'SALE',
+        createdAt: { $gte: utcStart, $lte: utcEnd },
+        isDeleted: false,
+      });
+
+      const hourMap = new Map<
+        number,
+        {
+          netRevenue: number;
+          grossRevenue: number;
+          discounts: number;
+          invoiceCount: number;
+        }
+      >();
+
+      // Pre-populate hours 8am to 10pm (8 to 22)
+      for (let h = 8; h <= 22; h++) {
+        hourMap.set(h, {
+          netRevenue: 0,
+          grossRevenue: 0,
+          discounts: 0,
+          invoiceCount: 0,
+        });
+      }
+
+      for (const invoice of todayInvoices) {
+        const istDate = new Date(invoice.createdAt.getTime() + IST_OFFSET_MS);
+        const hour = istDate.getUTCHours();
+
+        if (!hourMap.has(hour)) {
+          hourMap.set(hour, {
+            netRevenue: 0,
+            grossRevenue: 0,
+            discounts: 0,
+            invoiceCount: 0,
+          });
+        }
+
+        const entry = hourMap.get(hour)!;
+        const subtotal = parseDecimal(invoice.subtotal);
+        let itemDiscountTotal = 0;
+        for (const item of invoice.items) {
+          itemDiscountTotal += parseDecimal(item.itemDiscountAmount);
+        }
+        const billDiscount = parseDecimal(invoice.billDiscountAmount);
+        const totalDiscount = itemDiscountTotal + billDiscount;
+        const netRevenue = Math.max(0, subtotal - totalDiscount);
+
+        entry.grossRevenue += subtotal;
+        entry.discounts += totalDiscount;
+        entry.netRevenue += netRevenue;
+        entry.invoiceCount += 1;
+      }
+
+      const sortedHours = Array.from(hourMap.keys()).sort((a, b) => a - b);
+      const dataPoints = sortedHours.map((h) => {
+        const entry = hourMap.get(h)!;
+        return {
+          label: `${pad(h)}:00`,
+          netRevenue: parseFloat(entry.netRevenue.toFixed(2)),
+          grossRevenue: parseFloat(entry.grossRevenue.toFixed(2)),
+          discounts: parseFloat(entry.discounts.toFixed(2)),
+          invoiceCount: entry.invoiceCount,
+        };
+      });
+
+      return {
+        aggregation: 'hourly',
+        dataPoints,
+      };
+    }
+
+    // Generate all calendar days in range for Daily / Weekly aggregation
+    const allDates = this.generateDateRange(startDateStr, endDateStr);
+
+    // Query precomputed summaries
+    const historicalDates = allDates.filter((d) => d !== todayStr);
+    const summaryMap = new Map<string, any>();
+
+    if (historicalDates.length > 0) {
+      const summaries = await this.dailyRevenueSummaryModel.find({
+        outletId: defaultOutlet._id,
+        date: { $in: historicalDates },
+      });
+      for (const s of summaries) {
+        summaryMap.set(s.date, s);
+      }
+    }
+
+    // Resolve daily records
+    const dailyRecords: Array<{
+      date: string;
+      netRevenue: number;
+      grossRevenue: number;
+      discounts: number;
+      invoiceCount: number;
+    }> = [];
+
+    for (const date of allDates) {
+      if (date === todayStr) {
+        const live = await this.queryLiveInvoiceRevenue(
+          tenantObjectId,
+          defaultOutlet._id,
+          date,
+        );
+        // Find grossRevenue and discounts for today
+        const utcStart = new Date(`${todayStr}T00:00:00+05:30`);
+        const utcEnd = new Date(`${todayStr}T23:59:59.999+05:30`);
+        const invoices = await this.invoiceModel.find({
+          tenantId: tenantObjectId,
+          outletId: this.outletIdFilter(defaultOutlet._id.toString()),
+          invoiceType: 'SALE',
+          createdAt: { $gte: utcStart, $lte: utcEnd },
+          isDeleted: false,
+        });
+
+        let grossRevenue = 0;
+        let discounts = 0;
+        for (const invoice of invoices) {
+          grossRevenue += parseDecimal(invoice.subtotal);
+          let itemDiscountTotal = 0;
+          for (const item of invoice.items) {
+            itemDiscountTotal += parseDecimal(item.itemDiscountAmount);
+          }
+          discounts +=
+            itemDiscountTotal + parseDecimal(invoice.billDiscountAmount);
+        }
+
+        dailyRecords.push({
+          date,
+          netRevenue: live.netRevenue,
+          grossRevenue,
+          discounts,
+          invoiceCount: live.totalInvoices,
+        });
+      } else if (summaryMap.has(date)) {
+        const s = summaryMap.get(date)!;
+        dailyRecords.push({
+          date,
+          netRevenue: parseDecimal(s.netRevenue),
+          grossRevenue: parseDecimal(s.grossRevenue),
+          discounts: parseDecimal(s.totalDiscounts),
+          invoiceCount: s.totalInvoices,
+        });
+      } else {
+        // Fallback live query for missing historical days
+        const live = await this.queryLiveInvoiceRevenue(
+          tenantObjectId,
+          defaultOutlet._id,
+          date,
+        );
+        dailyRecords.push({
+          date,
+          netRevenue: live.netRevenue,
+          grossRevenue: live.netRevenue, // fallback approximation
+          discounts: 0,
+          invoiceCount: live.totalInvoices,
+        });
+      }
+    }
+
+    // --- CASE 2: Daily Aggregation (Duration <= 30 days) ---
+    if (diffDays <= 30) {
+      const dataPoints = dailyRecords.map((r) => ({
+        label: r.date,
+        netRevenue: parseFloat(r.netRevenue.toFixed(2)),
+        grossRevenue: parseFloat(r.grossRevenue.toFixed(2)),
+        discounts: parseFloat(r.discounts.toFixed(2)),
+        invoiceCount: r.invoiceCount,
+      }));
+
+      return {
+        aggregation: 'daily',
+        dataPoints,
+      };
+    }
+
+    // --- CASE 3: Weekly Aggregation (Duration > 30 days) ---
+    const getMondayOfDate = (dateStr: string): string => {
+      const date = new Date(`${dateStr}T00:00:00Z`);
+      const day = date.getUTCDay();
+      const diff = day === 0 ? 6 : day - 1;
+      date.setUTCDate(date.getUTCDate() - diff);
+      return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+    };
+
+    const weekMap = new Map<
+      string,
+      {
+        netRevenue: number;
+        grossRevenue: number;
+        discounts: number;
+        invoiceCount: number;
+      }
+    >();
+
+    for (const r of dailyRecords) {
+      const weekStart = getMondayOfDate(r.date);
+      if (!weekMap.has(weekStart)) {
+        weekMap.set(weekStart, {
+          netRevenue: 0,
+          grossRevenue: 0,
+          discounts: 0,
+          invoiceCount: 0,
+        });
+      }
+      const entry = weekMap.get(weekStart)!;
+      entry.netRevenue += r.netRevenue;
+      entry.grossRevenue += r.grossRevenue;
+      entry.discounts += r.discounts;
+      entry.invoiceCount += r.invoiceCount;
+    }
+
+    const sortedWeeks = Array.from(weekMap.keys()).sort((a, b) =>
+      a.localeCompare(b),
+    );
+    const dataPoints = sortedWeeks.map((w) => {
+      const entry = weekMap.get(w)!;
+      return {
+        label: w,
+        netRevenue: parseFloat(entry.netRevenue.toFixed(2)),
+        grossRevenue: parseFloat(entry.grossRevenue.toFixed(2)),
+        discounts: parseFloat(entry.discounts.toFixed(2)),
+        invoiceCount: entry.invoiceCount,
+      };
+    });
+
+    return {
+      aggregation: 'weekly',
+      dataPoints,
+    };
+  }
+
   private outletIdFilter(outletId: string): any {
     try {
       return { $in: [outletId, new Types.ObjectId(outletId)] };
