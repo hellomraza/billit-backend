@@ -459,5 +459,64 @@ export class AnalyticsController {
       dateTo,
     );
   }
+
+  @ApiOperation({
+    summary: 'Get GST collected and GST vs non-GST invoice count',
+    description:
+      'Returns the total GST collected and counts of GST vs non-GST invoices within a specific period.',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'period',
+    description: 'Time period to query (today, this_week, this_month, last7days, last30days, last90days, custom)',
+    example: 'last30days',
+    required: false,
+    default: 'last30days',
+  })
+  @ApiQuery({
+    name: 'dateFrom',
+    description: 'Start date in YYYY-MM-DD format (required only when period = custom)',
+    example: '2026-05-01',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'dateTo',
+    description: 'End date in YYYY-MM-DD format (required only when period = custom)',
+    example: '2026-05-25',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'GST summary collected data',
+    schema: {
+      properties: {
+        totalGstCollected: { type: 'number' },
+        gstInvoiceCount: { type: 'number' },
+        nonGstInvoiceCount: { type: 'number' },
+        hasGstData: { type: 'boolean' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid query parameters' })
+  @ApiResponse({ status: 401, description: 'Unauthorized — bad or missing JWT' })
+  @ApiResponse({ status: 404, description: 'Tenant or default outlet not found' })
+  @Get('gst-summary')
+  async getGstSummary(
+    @Param('tenantId') tenantId: string,
+    @Query('period') period: string = 'last30days',
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    return this.analyticsService.getGstSummary(
+      tenantId,
+      period,
+      dateFrom,
+      dateTo,
+    );
+  }
 }
 

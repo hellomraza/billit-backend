@@ -1388,6 +1388,160 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * Returns GST collected in the period, plus a count of GST vs non-GST invoices.
+   * Uses hybrid precomputed data for totalGstCollected and strictly live count for invoices.
+   */
+  async getGstSummary(
+    tenantId: string,
+    period: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<{
+    totalGstCollected: number;
+    gstInvoiceCount: number;
+    nonGstInvoiceCount: number;
+    hasGstData: boolean;
+  }> {
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const defaultOutlet = await this.outletService.getDefault(tenantId);
+
+    // 1. Resolve date range in IST
+    const { startDateStr, endDateStr } = this.resolveDateRange(
+      period,
+      dateFrom,
+      dateTo,
+    );
+
+    const allDates = this.generateDateRange(startDateStr, endDateStr);
+    const todayStr = todayIST();
+
+    const historicalDates = allDates.filter((d) => d !== todayStr);
+    const summaryMap = new Map<string, any>();
+
+    if (historicalDates.length > 0) {
+      const summaries = await this.dailyRevenueSummaryModel.find({
+        outletId: defaultOutlet._id,
+        date: { $in: historicalDates },
+      });
+      for (const s of summaries) {
+        summaryMap.set(s.date, s);
+      }
+    }
+
+    let totalGstCollected = 0;
+
+    const parseDecimal = (val: any): number => {
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return val;
+      return parseFloat(val.toString?.() || '0');
+    };
+
+    // 2. Aggregate totalGstCollected day-by-day (hybrid approach)
+    for (const date of allDates) {
+      if (date === todayStr) {
+        const liveGst = await this.queryLiveGstAmount(
+          tenantObjectId,
+          defaultOutlet._id,
+          date,
+        );
+        totalGstCollected += liveGst;
+      } else if (summaryMap.has(date)) {
+        const s = summaryMap.get(date)!;
+        totalGstCollected += parseDecimal(s.totalGstAmount);
+      } else {
+        const liveGst = await this.queryLiveGstAmount(
+          tenantObjectId,
+          defaultOutlet._id,
+          date,
+        );
+        totalGstCollected += liveGst;
+      }
+    }
+
+    // 3. Count of SALE invoices with gstEnabled = true vs gstEnabled = false for the ENTIRE period (strictly live query)
+    const startUtc = new Date(`${startDateStr}T00:00:00+05:30`);
+    const endUtc = new Date(`${endDateStr}T23:59:59.999+05:30`);
+
+    const countAgg = await this.invoiceModel.aggregate([
+      {
+        $match: {
+          tenantId: tenantObjectId,
+          outletId: this.outletIdFilter(defaultOutlet._id.toString()),
+          invoiceType: 'SALE',
+          createdAt: { $gte: startUtc, $lte: endUtc },
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: '$gstEnabled',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    let gstInvoiceCount = 0;
+    let nonGstInvoiceCount = 0;
+
+    for (const item of countAgg) {
+      if (item._id === true) {
+        gstInvoiceCount = item.count;
+      } else if (item._id === false) {
+        nonGstInvoiceCount = item.count;
+      }
+    }
+
+    const hasGstData = totalGstCollected > 0 || gstInvoiceCount > 0;
+
+    return {
+      totalGstCollected: parseFloat(totalGstCollected.toFixed(2)),
+      gstInvoiceCount,
+      nonGstInvoiceCount,
+      hasGstData,
+    };
+  }
+
+  /**
+   * Helper to execute live invoice query for GST amount on a single date.
+   */
+  private async queryLiveGstAmount(
+    tenantId: Types.ObjectId,
+    outletId: Types.ObjectId,
+    dateStr: string,
+  ): Promise<number> {
+    const utcStart = new Date(`${dateStr}T00:00:00+05:30`);
+    const utcEnd = new Date(`${dateStr}T23:59:59.999+05:30`);
+
+    const result = await this.invoiceModel.aggregate([
+      {
+        $match: {
+          tenantId,
+          outletId: this.outletIdFilter(outletId.toString()),
+          invoiceType: 'SALE',
+          createdAt: { $gte: utcStart, $lte: utcEnd },
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalGst: { $sum: '$totalGstAmount' },
+        },
+      },
+    ]);
+
+    if (result.length === 0) return 0;
+
+    const parseDecimal = (val: any): number => {
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return val;
+      return parseFloat(val.toString?.() || '0');
+    };
+
+    return parseDecimal(result[0].totalGst);
+  }
+
   private outletIdFilter(outletId: string): any {
     try {
       return { $in: [outletId, new Types.ObjectId(outletId)] };
