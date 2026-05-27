@@ -390,4 +390,74 @@ export class AnalyticsController {
       dateTo,
     );
   }
+
+  @ApiOperation({
+    summary: 'Get payment method breakdown of sales',
+    description:
+      'Returns a breakdown of sales (invoice counts, amounts, percentages) grouped by payment method (CASH, CARD, UPI) for a given period.',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'period',
+    description: 'Time period to query (today, this_week, this_month, last7days, last30days, last90days, custom)',
+    example: 'last30days',
+    required: false,
+    default: 'last30days',
+  })
+  @ApiQuery({
+    name: 'dateFrom',
+    description: 'Start date in YYYY-MM-DD format (required only when period = custom)',
+    example: '2026-05-01',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'dateTo',
+    description: 'End date in YYYY-MM-DD format (required only when period = custom)',
+    example: '2026-05-25',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment method breakdown of sales',
+    schema: {
+      properties: {
+        paymentBreakdown: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              paymentMethod: { type: 'string', enum: ['CASH', 'CARD', 'UPI'] },
+              invoiceCount: { type: 'number' },
+              totalAmount: { type: 'number' },
+              percentage: { type: 'number' },
+            },
+          },
+        },
+        totalInvoices: { type: 'number' },
+        totalAmount: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid query parameters' })
+  @ApiResponse({ status: 401, description: 'Unauthorized — bad or missing JWT' })
+  @ApiResponse({ status: 404, description: 'Tenant or default outlet not found' })
+  @Get('payment-breakdown')
+  async getPaymentBreakdown(
+    @Param('tenantId') tenantId: string,
+    @Query('period') period: string = 'last30days',
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    return this.analyticsService.getPaymentBreakdown(
+      tenantId,
+      period,
+      dateFrom,
+      dateTo,
+    );
+  }
 }
+

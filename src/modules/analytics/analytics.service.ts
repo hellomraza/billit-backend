@@ -1283,6 +1283,111 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * Returns breakdown of sales grouped by payment method (CASH, CARD, UPI) for a given period.
+   * Computed live from the Invoice collection.
+   */
+  async getPaymentBreakdown(
+    tenantId: string,
+    period: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<{
+    paymentBreakdown: Array<{
+      paymentMethod: 'CASH' | 'CARD' | 'UPI';
+      invoiceCount: number;
+      totalAmount: number;
+      percentage: number;
+    }>;
+    totalInvoices: number;
+    totalAmount: number;
+  }> {
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const defaultOutlet = await this.outletService.getDefault(tenantId);
+
+    // 1. Resolve date range in IST
+    const { startDateStr, endDateStr } = this.resolveDateRange(
+      period,
+      dateFrom,
+      dateTo,
+    );
+
+    const startUtc = new Date(`${startDateStr}T00:00:00+05:30`);
+    const endUtc = new Date(`${endDateStr}T23:59:59.999+05:30`);
+
+    // 2. Perform live aggregation on Invoice collection
+    const aggregations = await this.invoiceModel.aggregate([
+      {
+        $match: {
+          tenantId: tenantObjectId,
+          outletId: this.outletIdFilter(defaultOutlet._id.toString()),
+          invoiceType: 'SALE',
+          createdAt: { $gte: startUtc, $lte: endUtc },
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: '$paymentMethod',
+          invoiceCount: { $sum: 1 },
+          totalAmount: { $sum: '$grandTotal' },
+        },
+      },
+    ]);
+
+    // Parse decimal type cleanly if needed
+    const parseDecimal = (val: any): number => {
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return val;
+      return parseFloat(val.toString?.() || '0');
+    };
+
+    // 3. Map aggregations into a lookup map
+    const statsMap = new Map<string, { count: number; amount: number }>();
+    for (const agg of aggregations) {
+      if (agg._id) {
+        const methodStr = agg._id.toString().toUpperCase();
+        statsMap.set(methodStr, {
+          count: agg.invoiceCount || 0,
+          amount: parseDecimal(agg.totalAmount),
+        });
+      }
+    }
+
+    // 4. Ensure CASH, CARD, and UPI are always present
+    const methods: Array<'CASH' | 'CARD' | 'UPI'> = ['CASH', 'CARD', 'UPI'];
+    let totalInvoices = 0;
+    let totalAmountSum = 0;
+
+    const rawBreakdown = methods.map((method) => {
+      const stats = statsMap.get(method) || { count: 0, amount: 0 };
+      totalInvoices += stats.count;
+      totalAmountSum += stats.amount;
+      return {
+        paymentMethod: method,
+        invoiceCount: stats.count,
+        totalAmount: stats.amount,
+      };
+    });
+
+    // 5. Calculate percentages based on invoice count
+    const paymentBreakdown = rawBreakdown.map((item) => {
+      const percentage =
+        totalInvoices > 0 ? (item.invoiceCount / totalInvoices) * 100 : 0;
+      return {
+        ...item,
+        totalAmount: parseFloat(item.totalAmount.toFixed(2)),
+        percentage: parseFloat(percentage.toFixed(2)),
+      };
+    });
+
+    return {
+      paymentBreakdown,
+      totalInvoices,
+      totalAmount: parseFloat(totalAmountSum.toFixed(2)),
+    };
+  }
+
   private outletIdFilter(outletId: string): any {
     try {
       return { $in: [outletId, new Types.ObjectId(outletId)] };
