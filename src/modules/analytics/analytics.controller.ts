@@ -160,4 +160,32 @@ export class AnalyticsController {
     }
     return this.analyticsService.getProductHealth(tenantId, window);
   }
+
+  @ApiOperation({
+    summary: 'Get deficit summary for tenant default outlet',
+    description:
+      'Returns a compact summary of pending deficits (pending product count, sum of pending quantities, indicator).',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Deficit summary',
+    schema: {
+      properties: {
+        pendingProductCount: { type: 'number' },
+        totalPendingQuantity: { type: 'number' },
+        hasDeficits: { type: 'boolean' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized — bad or missing JWT' })
+  @ApiResponse({ status: 404, description: 'Tenant or default outlet not found' })
+  @Get('deficit-summary')
+  async getDeficitSummary(@Param('tenantId') tenantId: string) {
+    return this.analyticsService.getDeficitSummary(tenantId);
+  }
 }

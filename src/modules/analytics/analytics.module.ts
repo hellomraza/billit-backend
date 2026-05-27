@@ -11,6 +11,7 @@ import {
 import { Invoice, InvoiceSchema } from '../invoice/invoice.schema';
 import { Stock, StockSchema } from '../stock/stock.schema';
 import { Product, ProductSchema } from '../product/product.schema';
+import { DeficitRecord, DeficitRecordSchema } from '../deficit/deficit.schema';
 import { OutletModule } from '../outlet/outlet.module';
 import { AnalyticsComputeService } from './analytics-compute.service';
 import { AnalyticsService } from './analytics.service';
@@ -26,6 +27,7 @@ import { AnalyticsController } from './analytics.controller';
       { name: Invoice.name, schema: InvoiceSchema },
       { name: Stock.name, schema: StockSchema },
       { name: Product.name, schema: ProductSchema },
+      { name: DeficitRecord.name, schema: DeficitRecordSchema },
     ]),
     OutletModule,
   ],

@@ -5,6 +5,7 @@ import { Stock } from '../stock/stock.schema';
 import { Product } from '../product/product.schema';
 import { DailyProductSales } from './schemas/daily-product-sales.schema';
 import { Invoice } from '../invoice/invoice.schema';
+import { DeficitRecord, DeficitStatus } from '../deficit/deficit.schema';
 import { OutletService } from '../outlet/outlet.service';
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -45,6 +46,8 @@ export class AnalyticsService {
     @InjectModel(DailyProductSales.name)
     private readonly dailyProductSalesModel: Model<DailyProductSales>,
     @InjectModel(Invoice.name) private readonly invoiceModel: Model<Invoice>,
+    @InjectModel(DeficitRecord.name)
+    private readonly deficitRecordModel: Model<DeficitRecord>,
     private readonly outletService: OutletService,
   ) {}
 
@@ -450,6 +453,52 @@ export class AnalyticsService {
       slowSelling,
       deadStock,
       normal,
+    };
+  }
+
+  /**
+   * Computes a compact summary of pending deficits for the tenant default outlet.
+   */
+  async getDeficitSummary(tenantId: string): Promise<{
+    pendingProductCount: number;
+    totalPendingQuantity: number;
+    hasDeficits: boolean;
+  }> {
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const defaultOutlet = await this.outletService.getDefault(tenantId);
+
+    const result = await this.deficitRecordModel.aggregate([
+      {
+        $match: {
+          tenantId: tenantObjectId,
+          outletId: defaultOutlet._id,
+          status: DeficitStatus.PENDING,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          productIds: { $addToSet: '$productId' },
+          totalPendingQuantity: { $sum: '$quantity' },
+        },
+      },
+    ]);
+
+    if (result.length === 0) {
+      return {
+        pendingProductCount: 0,
+        totalPendingQuantity: 0,
+        hasDeficits: false,
+      };
+    }
+
+    const pendingProductCount = result[0].productIds.length;
+    const totalPendingQuantity = result[0].totalPendingQuantity;
+
+    return {
+      pendingProductCount,
+      totalPendingQuantity,
+      hasDeficits: pendingProductCount > 0,
     };
   }
 
