@@ -1055,6 +1055,234 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * Helper to execute live invoice query for product-level sales on a single date.
+   */
+  private async queryLiveProductSales(
+    tenantId: Types.ObjectId,
+    outletId: Types.ObjectId,
+    dateStr: string,
+  ): Promise<
+    Map<
+      string,
+      { unitsSold: number; refundedUnits: number; netRevenue: number }
+    >
+  > {
+    const utcStart = new Date(`${dateStr}T00:00:00+05:30`);
+    const utcEnd = new Date(`${dateStr}T23:59:59.999+05:30`);
+
+    const invoices = await this.invoiceModel.find({
+      tenantId,
+      outletId: this.outletIdFilter(outletId.toString()),
+      createdAt: { $gte: utcStart, $lte: utcEnd },
+      isDeleted: false,
+    });
+
+    const productMap = new Map<
+      string,
+      {
+        unitsSold: number;
+        refundedUnits: number;
+        grossRevenue: number;
+        discountAmount: number;
+      }
+    >();
+
+    const parseDecimal = (val: any): number => {
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return val;
+      return parseFloat(val.toString?.() || '0');
+    };
+
+    for (const invoice of invoices) {
+      const isSale = invoice.invoiceType === 'SALE';
+      const isRefund = invoice.invoiceType === 'REFUND';
+
+      const subtotal = parseDecimal(invoice.subtotal);
+      const billDiscountAmount = parseDecimal(invoice.billDiscountAmount);
+
+      for (const item of invoice.items) {
+        const productId = item.productId.toString();
+        if (!productMap.has(productId)) {
+          productMap.set(productId, {
+            unitsSold: 0,
+            refundedUnits: 0,
+            grossRevenue: 0,
+            discountAmount: 0,
+          });
+        }
+
+        const entry = productMap.get(productId)!;
+        const lineTotal = parseDecimal(item.lineTotal);
+        const itemDiscountAmount = parseDecimal(item.itemDiscountAmount);
+        const unitPrice = parseDecimal(item.unitPrice);
+        const qty = item.quantity;
+
+        if (isSale) {
+          entry.unitsSold += qty;
+          entry.grossRevenue += unitPrice * qty;
+
+          const billDiscountShare =
+            subtotal > 0 ? (lineTotal / subtotal) * billDiscountAmount : 0;
+          entry.discountAmount += itemDiscountAmount + billDiscountShare;
+        } else if (isRefund) {
+          entry.refundedUnits += qty;
+        }
+      }
+    }
+
+    const resultMap = new Map<
+      string,
+      { unitsSold: number; refundedUnits: number; netRevenue: number }
+    >();
+
+    for (const [productId, data] of productMap.entries()) {
+      const netUnitsSold = Math.max(0, data.unitsSold - data.refundedUnits);
+      const netRevenue = Math.max(0, data.grossRevenue - data.discountAmount);
+      resultMap.set(productId, {
+        unitsSold: netUnitsSold,
+        refundedUnits: data.refundedUnits,
+        netRevenue,
+      });
+    }
+
+    return resultMap;
+  }
+
+  /**
+   * Returns top 10 products by net revenue in the given period.
+   */
+  async getTopProducts(
+    tenantId: string,
+    period: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<{
+    topProducts: Array<{
+      rank: number;
+      productId: string;
+      productName: string;
+      netRevenue: number;
+      unitsSold: number;
+      percentOfTotal: number;
+    }>;
+    totalNetRevenue: number;
+  }> {
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const defaultOutlet = await this.outletService.getDefault(tenantId);
+
+    // 1. Resolve date range in IST
+    const { startDateStr, endDateStr } = this.resolveDateRange(
+      period,
+      dateFrom,
+      dateTo,
+    );
+
+    const allDates = this.generateDateRange(startDateStr, endDateStr);
+    const todayStr = todayIST();
+    const historicalDates = allDates.filter((d) => d !== todayStr);
+
+    const productStats = new Map<
+      string,
+      {
+        netRevenue: number;
+        unitsSold: number;
+      }
+    >();
+
+    const parseDecimal = (val: any): number => {
+      if (val === null || val === undefined) return 0;
+      if (typeof val === 'number') return val;
+      return parseFloat(val.toString?.() || '0');
+    };
+
+    // 2. Fetch historical from DailyProductSales
+    if (historicalDates.length > 0) {
+      const historicalSales = await this.dailyProductSalesModel.find({
+        outletId: defaultOutlet._id,
+        date: { $in: historicalDates },
+      });
+
+      for (const sale of historicalSales) {
+        const pId = sale.productId.toString();
+        if (!productStats.has(pId)) {
+          productStats.set(pId, { netRevenue: 0, unitsSold: 0 });
+        }
+        const stat = productStats.get(pId)!;
+        stat.netRevenue += parseDecimal(sale.netRevenue);
+        stat.unitsSold += sale.netUnitsSold; // Using netUnitsSold for output unitsSold
+      }
+    }
+
+    // 3. Fetch today's live data
+    if (allDates.includes(todayStr)) {
+      const liveSales = await this.queryLiveProductSales(
+        tenantObjectId,
+        defaultOutlet._id,
+        todayStr,
+      );
+
+      for (const [pId, data] of liveSales.entries()) {
+        if (!productStats.has(pId)) {
+          productStats.set(pId, { netRevenue: 0, unitsSold: 0 });
+        }
+        const stat = productStats.get(pId)!;
+        stat.netRevenue += data.netRevenue;
+        stat.unitsSold += data.unitsSold; // This is the netUnitsSold from the live query
+      }
+    }
+
+    // 4. Calculate total net revenue across all products
+    let totalNetRevenue = 0;
+    for (const stat of productStats.values()) {
+      totalNetRevenue += stat.netRevenue;
+    }
+
+    // 5. Sort descending by netRevenue
+    const sortedProducts = Array.from(productStats.entries()).map(
+      ([productId, stat]) => ({
+        productId,
+        netRevenue: stat.netRevenue,
+        unitsSold: stat.unitsSold,
+      }),
+    );
+    sortedProducts.sort((a, b) => b.netRevenue - a.netRevenue);
+
+    // 6. Take top 10
+    const top10 = sortedProducts.slice(0, 10);
+
+    // 7. Resolve product names
+    const productIds = top10.map((p) => new Types.ObjectId(p.productId));
+    const products = await this.productModel.find({
+      _id: { $in: productIds },
+    });
+    const productNameMap = new Map<string, string>();
+    for (const p of products) {
+      productNameMap.set(p._id!.toString(), p.name);
+    }
+
+    // 8. Build response
+    const topProducts = top10.map((p, index) => {
+      const productName = productNameMap.get(p.productId) || p.productId;
+      const percentOfTotal =
+        totalNetRevenue > 0 ? (p.netRevenue / totalNetRevenue) * 100 : 0;
+
+      return {
+        rank: index + 1,
+        productId: p.productId,
+        productName,
+        netRevenue: parseFloat(p.netRevenue.toFixed(2)),
+        unitsSold: p.unitsSold,
+        percentOfTotal: parseFloat(percentOfTotal.toFixed(2)),
+      };
+    });
+
+    return {
+      topProducts,
+      totalNetRevenue: parseFloat(totalNetRevenue.toFixed(2)),
+    };
+  }
+
   private outletIdFilter(outletId: string): any {
     try {
       return { $in: [outletId, new Types.ObjectId(outletId)] };

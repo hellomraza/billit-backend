@@ -320,4 +320,74 @@ export class AnalyticsController {
       dateTo,
     );
   }
+
+  @ApiOperation({
+    summary: 'Get top products by net revenue',
+    description:
+      'Returns the top 10 products sorted by net revenue descending in the given period, merging historical data with today\'s live sales.',
+  })
+  @ApiParam({
+    name: 'tenantId',
+    description: 'Tenant ID (MongoDB ObjectId)',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiQuery({
+    name: 'period',
+    description: 'Time period to query (today, this_week, this_month, last7days, last30days, last90days, custom)',
+    example: 'last30days',
+    required: false,
+    default: 'last30days',
+  })
+  @ApiQuery({
+    name: 'dateFrom',
+    description: 'Start date in YYYY-MM-DD format (required only when period = custom)',
+    example: '2026-05-01',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'dateTo',
+    description: 'End date in YYYY-MM-DD format (required only when period = custom)',
+    example: '2026-05-25',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Top products by revenue',
+    schema: {
+      properties: {
+        topProducts: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              rank: { type: 'number' },
+              productId: { type: 'string' },
+              productName: { type: 'string' },
+              netRevenue: { type: 'number' },
+              unitsSold: { type: 'number' },
+              percentOfTotal: { type: 'number' },
+            },
+          },
+        },
+        totalNetRevenue: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid query parameters' })
+  @ApiResponse({ status: 401, description: 'Unauthorized — bad or missing JWT' })
+  @ApiResponse({ status: 404, description: 'Tenant or default outlet not found' })
+  @Get('top-products')
+  async getTopProducts(
+    @Param('tenantId') tenantId: string,
+    @Query('period') period: string = 'last30days',
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+  ) {
+    return this.analyticsService.getTopProducts(
+      tenantId,
+      period,
+      dateFrom,
+      dateTo,
+    );
+  }
 }
