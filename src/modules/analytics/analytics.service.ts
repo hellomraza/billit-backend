@@ -320,7 +320,7 @@ export class AnalyticsService {
     const maxAvgDaily = Math.max(...avgDailySalesValues);
     const minAvgDaily = Math.min(...avgDailySalesValues);
 
-    if (maxAvgDaily - minAvgDaily <= 2) {
+    if (maxAvgDaily - minAvgDaily <= 1) {
       return {
         window,
         categoriesAvailable: false,
