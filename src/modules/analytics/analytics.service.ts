@@ -1,16 +1,16 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Stock } from '../stock/stock.schema';
-import { Product } from '../product/product.schema';
-import { DailyProductSales } from './schemas/daily-product-sales.schema';
-import { Invoice } from '../invoice/invoice.schema';
 import { DeficitRecord, DeficitStatus } from '../deficit/deficit.schema';
+import { Invoice } from '../invoice/invoice.schema';
+import { OutletService } from '../outlet/outlet.service';
+import { Product } from '../product/product.schema';
+import { Stock } from '../stock/stock.schema';
+import { DailyProductSales } from './schemas/daily-product-sales.schema';
 import {
   DailyRevenueSummary,
   DailyRevenueSummaryDocument,
 } from './schemas/daily-revenue-summary.schema';
-import { OutletService } from '../outlet/outlet.service';
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
@@ -78,7 +78,6 @@ export class AnalyticsService {
         $match: {
           tenantId: tenantObjectId,
           outletId: defaultOutlet._id,
-          quantity: { $lte: 10 },
         },
       },
       {
@@ -95,6 +94,9 @@ export class AnalyticsService {
       {
         $match: {
           'product.isDeleted': false,
+          $expr: {
+            $lte: ['$quantity', '$product.deficitThreshold'],
+          },
         },
       },
       {
@@ -103,6 +105,7 @@ export class AnalyticsService {
           productId: '$productId',
           productName: '$product.name',
           currentStock: '$quantity',
+          deficitThreshold: '$product.deficitThreshold',
         },
       },
       {
@@ -144,7 +147,10 @@ export class AnalyticsService {
   ): Promise<{
     window: number;
     categoriesAvailable: boolean;
-    insufficientReason: 'INSUFFICIENT_PRODUCTS' | 'INSUFFICIENT_DIFFERENTIATION' | null;
+    insufficientReason:
+      | 'INSUFFICIENT_PRODUCTS'
+      | 'INSUFFICIENT_DIFFERENTIATION'
+      | null;
     fastSelling: Array<{
       productId: string;
       productName: string;
@@ -207,7 +213,9 @@ export class AnalyticsService {
     const endDateStr = yesterdayIST();
     const startDateStr = getIstDateMinusDays(window);
 
-    this.logger.log(`[HealthDebug] tenantId=${tenantId} outletId=${defaultOutlet._id} startDateStr=${startDateStr} endDateStr=${endDateStr}`);
+    this.logger.log(
+      `[HealthDebug] tenantId=${tenantId} outletId=${defaultOutlet._id} startDateStr=${startDateStr} endDateStr=${endDateStr}`,
+    );
 
     // 2. Query historical sales from DailyProductSales
     const historicalSales = await this.dailyProductSalesModel.find({
@@ -215,7 +223,9 @@ export class AnalyticsService {
       date: { $gte: startDateStr, $lte: endDateStr },
     });
 
-    this.logger.log(`[HealthDebug] historicalSales count=${historicalSales.length}`);
+    this.logger.log(
+      `[HealthDebug] historicalSales count=${historicalSales.length}`,
+    );
 
     for (const sale of historicalSales) {
       const prodId = sale.productId.toString();
@@ -411,10 +421,7 @@ export class AnalyticsService {
     const slowSelling: any[] = [];
 
     if (slowCandidates.length > 0 && bottom20PercentCount > 0) {
-      const index = Math.max(
-        0,
-        slowCandidates.length - bottom20PercentCount,
-      );
+      const index = Math.max(0, slowCandidates.length - bottom20PercentCount);
       const slowBoundaryValue = slowCandidates[index].avgDailySales;
 
       for (const p of slowCandidates) {
@@ -1272,7 +1279,7 @@ export class AnalyticsService {
     // 8. Build response
     const topProducts = top10.map((p, index) => {
       const productName = productNameMap.get(p.productId) || p.productId;
-      
+
       let percentOfTotal = 0;
       if (sortBy === 'units_sold') {
         percentOfTotal =
