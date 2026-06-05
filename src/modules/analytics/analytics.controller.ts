@@ -322,9 +322,9 @@ export class AnalyticsController {
   }
 
   @ApiOperation({
-    summary: 'Get top products by net revenue',
+    summary: 'Get top products by net revenue or units sold',
     description:
-      'Returns the top 10 products sorted by net revenue descending in the given period, merging historical data with today\'s live sales.',
+      'Returns the top 10 products sorted by net revenue or units sold descending in the given period, merging historical data with today\'s live sales.',
   })
   @ApiParam({
     name: 'tenantId',
@@ -350,9 +350,16 @@ export class AnalyticsController {
     example: '2026-05-25',
     required: false,
   })
+  @ApiQuery({
+    name: 'sortBy',
+    description: 'Field to sort top products by (revenue or units_sold)',
+    enum: ['revenue', 'units_sold'],
+    required: false,
+    default: 'revenue',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Top products by revenue',
+    description: 'Top products list with summary metrics',
     schema: {
       properties: {
         topProducts: {
@@ -370,6 +377,7 @@ export class AnalyticsController {
           },
         },
         totalNetRevenue: { type: 'number' },
+        totalUnitsSold: { type: 'number' },
       },
     },
   })
@@ -382,12 +390,17 @@ export class AnalyticsController {
     @Query('period') period: string = 'last30days',
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
+    @Query('sortBy') sortBy: 'revenue' | 'units_sold' = 'revenue',
   ) {
+    if (sortBy && !['revenue', 'units_sold'].includes(sortBy)) {
+      throw new BadRequestException('sortBy must be either revenue or units_sold');
+    }
     return this.analyticsService.getTopProducts(
       tenantId,
       period,
       dateFrom,
       dateTo,
+      sortBy,
     );
   }
 

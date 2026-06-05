@@ -1150,13 +1150,14 @@ export class AnalyticsService {
   }
 
   /**
-   * Returns top 10 products by net revenue in the given period.
+   * Returns top 10 products by net revenue or units sold in the given period.
    */
   async getTopProducts(
     tenantId: string,
     period: string,
     dateFrom?: string,
     dateTo?: string,
+    sortBy: 'revenue' | 'units_sold' = 'revenue',
   ): Promise<{
     topProducts: Array<{
       rank: number;
@@ -1167,6 +1168,7 @@ export class AnalyticsService {
       percentOfTotal: number;
     }>;
     totalNetRevenue: number;
+    totalUnitsSold: number;
   }> {
     const tenantObjectId = new Types.ObjectId(tenantId);
     const defaultOutlet = await this.outletService.getDefault(tenantId);
@@ -1232,13 +1234,15 @@ export class AnalyticsService {
       }
     }
 
-    // 4. Calculate total net revenue across all products
+    // 4. Calculate total net revenue and total units sold across all products
     let totalNetRevenue = 0;
+    let totalUnitsSold = 0;
     for (const stat of productStats.values()) {
       totalNetRevenue += stat.netRevenue;
+      totalUnitsSold += stat.unitsSold;
     }
 
-    // 5. Sort descending by netRevenue
+    // 5. Sort descending by selected metric
     const sortedProducts = Array.from(productStats.entries()).map(
       ([productId, stat]) => ({
         productId,
@@ -1246,7 +1250,11 @@ export class AnalyticsService {
         unitsSold: stat.unitsSold,
       }),
     );
-    sortedProducts.sort((a, b) => b.netRevenue - a.netRevenue);
+    if (sortBy === 'units_sold') {
+      sortedProducts.sort((a, b) => b.unitsSold - a.unitsSold);
+    } else {
+      sortedProducts.sort((a, b) => b.netRevenue - a.netRevenue);
+    }
 
     // 6. Take top 10
     const top10 = sortedProducts.slice(0, 10);
@@ -1264,8 +1272,15 @@ export class AnalyticsService {
     // 8. Build response
     const topProducts = top10.map((p, index) => {
       const productName = productNameMap.get(p.productId) || p.productId;
-      const percentOfTotal =
-        totalNetRevenue > 0 ? (p.netRevenue / totalNetRevenue) * 100 : 0;
+      
+      let percentOfTotal = 0;
+      if (sortBy === 'units_sold') {
+        percentOfTotal =
+          totalUnitsSold > 0 ? (p.unitsSold / totalUnitsSold) * 100 : 0;
+      } else {
+        percentOfTotal =
+          totalNetRevenue > 0 ? (p.netRevenue / totalNetRevenue) * 100 : 0;
+      }
 
       return {
         rank: index + 1,
@@ -1280,6 +1295,7 @@ export class AnalyticsService {
     return {
       topProducts,
       totalNetRevenue: parseFloat(totalNetRevenue.toFixed(2)),
+      totalUnitsSold,
     };
   }
 
