@@ -17,7 +17,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Types } from 'mongoose';
-import { PaymentMethod } from '../invoice.schema';
+import { InvoiceType, PaymentMethod } from '../invoice.schema';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class InvoiceItemDto {
@@ -543,6 +543,23 @@ export class InvoiceListResponseDto {
     example: 2,
   })
   deficitCount!: number;
+
+  @ApiProperty({
+    description: 'Invoice type (SALE or REFUND)',
+    enum: ['SALE', 'REFUND'],
+    required: false,
+  })
+  invoiceType?: 'SALE' | 'REFUND';
+
+  @ApiProperty({
+    description: 'Original invoice details if this is a refund',
+    required: false,
+  })
+  originalInvoice?: {
+    id: string;
+    invoiceNumber: string;
+    createdAt: string;
+  };
 }
 
 export class InvoiceDetailResponseDto {
@@ -695,4 +712,11 @@ export class InvoiceDetailResponseDto {
     required: false,
   })
   billDiscountAmount?: number;
+
+  @ApiProperty({
+    description: 'Invoice type',
+    example: 'SALE',
+    required: false,
+  })
+  invoiceType?: InvoiceType;
 }

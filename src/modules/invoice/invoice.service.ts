@@ -460,6 +460,40 @@ export class InvoiceService {
       .limit(limit)
       .lean();
 
+    // Attach originalInvoice info for REFUND invoices
+    const refundInvoices = data.filter(
+      (inv: any) =>
+        inv.invoiceType === InvoiceType.REFUND && inv.originalInvoiceId,
+    );
+    if (refundInvoices.length > 0) {
+      const originalIds = refundInvoices.map(
+        (inv: any) => inv.originalInvoiceId,
+      );
+      const originals = await this.invoiceModel
+        .find({ _id: { $in: originalIds } })
+        .select('_id invoiceNumber createdAt')
+        .lean();
+
+      const originalsMap = new Map(
+        originals.map((orig) => [
+          orig._id.toString(),
+          {
+            id: orig._id.toString(),
+            invoiceNumber: orig.invoiceNumber,
+            createdAt: orig.createdAt,
+          },
+        ]),
+      );
+
+      for (const inv of data as any[]) {
+        if (inv.invoiceType === InvoiceType.REFUND && inv.originalInvoiceId) {
+          inv.originalInvoice = originalsMap.get(
+            inv.originalInvoiceId.toString(),
+          );
+        }
+      }
+    }
+
     const total = await this.invoiceModel.countDocuments(query);
 
     return { data, total, page, limit };
