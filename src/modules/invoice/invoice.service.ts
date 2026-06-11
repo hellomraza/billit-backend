@@ -376,6 +376,8 @@ export class InvoiceService {
       outletId?: string;
       productId?: string;
       invoiceType?: string;
+      customerName?: string;
+      customerPhone?: string;
     } = {},
   ): Promise<{ data: Invoice[]; total: number; page: number; limit: number }> {
     const {
@@ -389,6 +391,8 @@ export class InvoiceService {
       outletId,
       productId,
       invoiceType,
+      customerName,
+      customerPhone,
     } = filters;
 
     const skip = (page - 1) * limit;
@@ -412,6 +416,16 @@ export class InvoiceService {
     // Invoice number filter
     if (invoiceNumber) {
       query.invoiceNumber = { $regex: invoiceNumber, $options: 'i' };
+    }
+
+    // Customer Name filter
+    if (customerName) {
+      query.customerName = { $regex: customerName, $options: 'i' };
+    }
+
+    // Customer Phone filter
+    if (customerPhone) {
+      query.customerPhone = { $regex: customerPhone, $options: 'i' };
     }
 
     // Payment method filter
