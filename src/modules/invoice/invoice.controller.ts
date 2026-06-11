@@ -287,6 +287,20 @@ export class InvoiceController {
     description: 'Filter by invoice type (SALE, REFUND, ALL)',
     example: 'SALE',
   })
+  @ApiQuery({
+    name: 'customerName',
+    required: false,
+    type: 'string',
+    description: 'Filter by customer name (partial match)',
+    example: 'John Doe',
+  })
+  @ApiQuery({
+    name: 'customerPhone',
+    required: false,
+    type: 'string',
+    description: 'Filter by customer mobile number (partial match)',
+    example: '9876543210',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated list of invoices matching filters',
@@ -315,6 +329,8 @@ export class InvoiceController {
     @Query('outletId') outletId?: string,
     @Query('productId') productId?: string,
     @Query('invoiceType') invoiceType?: string,
+    @Query('customerName') customerName?: string,
+    @Query('customerPhone') customerPhone?: string,
   ) {
     // Cap limit to 100
     const parsedLimit = Math.min(parseInt(limit) || 20, 100);
@@ -346,6 +362,8 @@ export class InvoiceController {
         outletId,
         productId,
         invoiceType: normalizedInvoiceType,
+        customerName,
+        customerPhone,
       },
     );
 

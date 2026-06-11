@@ -117,4 +117,37 @@ describe('InvoiceController', () => {
       createInvoiceDto.clientDraftId,
     );
   });
+
+  describe('findAll', () => {
+    it('passes customerName and customerPhone query parameters to the service', async () => {
+      const invoiceService = {
+        findWithFilters: jest.fn().mockResolvedValue({ data: [], total: 0 }),
+      } as any;
+      const controller = new InvoiceController(invoiceService, {} as any);
+
+      await controller.findAll(
+        tenantId,
+        '1',
+        '20',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'John Doe',
+        '9876543210',
+      );
+
+      expect(invoiceService.findWithFilters).toHaveBeenCalledWith(
+        tenantId,
+        expect.objectContaining({
+          customerName: 'John Doe',
+          customerPhone: '9876543210',
+        }),
+      );
+    });
+  });
 });
