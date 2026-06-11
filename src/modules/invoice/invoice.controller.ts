@@ -567,6 +567,17 @@ export class InvoiceController {
       paymentMethod: invoice.paymentMethod,
       customerName: invoice.customerName,
       deficitCount: deficitItems,
+      invoiceType: invoice.invoiceType,
+      originalInvoice: invoice.originalInvoice
+        ? {
+            id: invoice.originalInvoice.id,
+            invoiceNumber: invoice.originalInvoice.invoiceNumber,
+            createdAt:
+              typeof invoice.originalInvoice.createdAt === 'string'
+                ? invoice.originalInvoice.createdAt
+                : invoice.originalInvoice.createdAt.toISOString(),
+          }
+        : undefined,
     };
   }
 
@@ -616,6 +627,7 @@ export class InvoiceController {
         })),
       refunds: invoice.refunds,
       originalInvoice: invoice.originalInvoice,
+      invoiceType: invoice.invoiceType,
     };
   }
 
